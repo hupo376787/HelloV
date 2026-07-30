@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>HelloV.iOS</AssemblyName>
+    <RootNamespace>HelloV.iOS</RootNamespace>
+    <TargetFramework>net10.0-ios</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+    <ApplicationTitle>HelloV</ApplicationTitle>
+    <ApplicationId>com.example.hellov</ApplicationId>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
+    <AppIcon>AppIcon</AppIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HelloV.Core\HelloV.Core.csproj" />
+    <PackageReference Include="Avalonia.iOS" Version="12.1.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ImageAsset Include="Assets.xcassets\AppIcon.appiconset\Contents.json" />
+  </ItemGroup>
+
+</Project>

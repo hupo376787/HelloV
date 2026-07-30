@@ -1,0 +1,304 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:HelloV.Controls"
+             xmlns:vm="using:HelloV.ViewModels"
+             xmlns:shapes="using:Avalonia.Controls.Shapes"
+             x:Class="HelloV.Views.MainView"
+             x:DataType="vm:MainViewModel">
+  <Grid x:Name="RootGrid" Background="#090A0F" ClipToBounds="True">
+    <!-- Camera always occupies the full client area. The settings panel floats above it. -->
+    <Grid ClipToBounds="True">
+      <Border Background="#11131B">
+        <controls:CameraPreviewControl x:Name="CameraPreview"
+                                       FlipHorizontally="{Binding FlipPreviewHorizontally}"
+                                       RenderOptions.BitmapInterpolationMode="LowQuality" />
+      </Border>
+
+      <controls:ReactionOverlay Reaction="{Binding Reaction}"
+                                AnchorX="{Binding ReactionAnchorX}"
+                                AnchorY="{Binding ReactionAnchorY}"
+                                Sequence="{Binding ReactionSequence}" />
+
+      <Border HorizontalAlignment="Left"
+              VerticalAlignment="Top"
+              Margin="18"
+              Padding="12,8"
+              CornerRadius="12"
+              Background="#B012141C">
+        <StackPanel Spacing="2">
+          <TextBlock Text="{Binding GestureText}" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding ResolutionText}" Opacity="0.68" FontSize="12" />
+        </StackPanel>
+      </Border>
+
+      <Border HorizontalAlignment="Center"
+              VerticalAlignment="Bottom"
+              Margin="18"
+              Padding="14,9"
+              CornerRadius="14"
+              Background="#B012141C">
+        <TextBlock Text="{Binding StatusText}"
+                   MaxWidth="760"
+                   TextTrimming="CharacterEllipsis" />
+      </Border>
+
+    </Grid>
+
+    <!-- Vector geometry avoids the vertical baseline offset of the Unicode gear glyph. -->
+    <Button IsVisible="{Binding IsDesktop}"
+            Command="{Binding ToggleSettingsPanelCommand}"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Top"
+            HorizontalContentAlignment="Center"
+            VerticalContentAlignment="Center"
+            Margin="0,48,18,0"
+            Width="46"
+            Height="46"
+            Padding="0"
+            CornerRadius="23"
+            Background="#A6141821"
+            BorderBrush="#66FFFFFF"
+            BorderThickness="1"
+            ToolTip.Tip="{Binding Localization.SettingsToolTip}"
+            ZIndex="300">
+      <Grid Width="21" Height="21">
+        <shapes:Path Width="21"
+                     Height="21"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center"
+                     Stretch="Uniform"
+                     Fill="White"
+                     Data="M19.43,12.98 C19.47,12.66 19.5,12.34 19.5,12 C19.5,11.66 19.47,11.34 19.42,11.02 L21.54,9.37 C21.73,9.22 21.78,8.95 21.66,8.73 L19.66,5.27 C19.54,5.05 19.27,4.96 19.05,5.05 L16.56,6.05 C16.04,5.65 15.48,5.32 14.87,5.07 L14.5,2.42 C14.47,2.18 14.25,2 14,2 L10,2 C9.75,2 9.54,2.18 9.5,2.42 L9.13,5.07 C8.52,5.32 7.95,5.66 7.44,6.05 L4.95,5.05 C4.72,4.97 4.46,5.05 4.34,5.27 L2.34,8.73 C2.21,8.95 2.27,9.22 2.46,9.37 L4.57,11.02 C4.52,11.34 4.5,11.67 4.5,12 C4.5,12.33 4.53,12.66 4.58,12.98 L2.46,14.63 C2.27,14.78 2.22,15.05 2.34,15.27 L4.34,18.73 C4.46,18.95 4.73,19.04 4.95,18.95 L7.44,17.95 C7.96,18.35 8.52,18.68 9.13,18.93 L9.5,21.58 C9.54,21.82 9.75,22 10,22 L14,22 C14.25,22 14.46,21.82 14.5,21.58 L14.87,18.93 C15.48,18.68 16.05,18.34 16.56,17.95 L19.05,18.95 C19.28,19.03 19.54,18.95 19.66,18.73 L21.66,15.27 C21.78,15.05 21.73,14.78 21.54,14.63 Z M12,15.5 A3.5,3.5 0 1 1 12,8.5 A3.5,3.5 0 0 1 12,15.5 Z" />
+      </Grid>
+    </Button>
+
+    <!-- Mobile has no desktop title bar. Keep both controls inside the safe top-right area. -->
+    <StackPanel IsVisible="{Binding IsMobile}"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="0,18,18,0"
+                Spacing="10"
+                ZIndex="300">
+      <Button Command="{Binding ToggleSettingsPanelCommand}"
+              HorizontalContentAlignment="Center"
+              VerticalContentAlignment="Center"
+              Width="46"
+              Height="46"
+              Padding="0"
+              CornerRadius="23"
+              Background="#A6141821"
+              BorderBrush="#66FFFFFF"
+              BorderThickness="1"
+              ToolTip.Tip="{Binding Localization.SettingsToolTip}">
+        <Grid Width="21" Height="21">
+          <shapes:Path Width="21"
+                       Height="21"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Stretch="Uniform"
+                       Fill="White"
+                       Data="M19.43,12.98 C19.47,12.66 19.5,12.34 19.5,12 C19.5,11.66 19.47,11.34 19.42,11.02 L21.54,9.37 C21.73,9.22 21.78,8.95 21.66,8.73 L19.66,5.27 C19.54,5.05 19.27,4.96 19.05,5.05 L16.56,6.05 C16.04,5.65 15.48,5.32 14.87,5.07 L14.5,2.42 C14.47,2.18 14.25,2 14,2 L10,2 C9.75,2 9.54,2.18 9.5,2.42 L9.13,5.07 C8.52,5.32 7.95,5.66 7.44,6.05 L4.95,5.05 C4.72,4.97 4.46,5.05 4.34,5.27 L2.34,8.73 C2.21,8.95 2.27,9.22 2.46,9.37 L4.57,11.02 C4.52,11.34 4.5,11.67 4.5,12 C4.5,12.33 4.53,12.66 4.58,12.98 L2.46,14.63 C2.27,14.78 2.22,15.05 2.34,15.27 L4.34,18.73 C4.46,18.95 4.73,19.04 4.95,18.95 L7.44,17.95 C7.96,18.35 8.52,18.68 9.13,18.93 L9.5,21.58 C9.54,21.82 9.75,22 10,22 L14,22 C14.25,22 14.46,21.82 14.5,21.58 L14.87,18.93 C15.48,18.68 16.05,18.34 16.56,17.95 L19.05,18.95 C19.28,19.03 19.54,18.95 19.66,18.73 L21.66,15.27 C21.78,15.05 21.73,14.78 21.54,14.63 Z M12,15.5 A3.5,3.5 0 1 1 12,8.5 A3.5,3.5 0 0 1 12,15.5 Z" />
+        </Grid>
+      </Button>
+
+      <Button Command="{Binding SwitchCameraCommand}"
+              HorizontalContentAlignment="Center"
+              VerticalContentAlignment="Center"
+              Width="46"
+              Height="46"
+              Padding="0"
+              CornerRadius="23"
+              Background="#A6141821"
+              BorderBrush="#66FFFFFF"
+              BorderThickness="1"
+              ToolTip.Tip="{Binding Localization.SwitchCamera}">
+        <Grid Width="23" Height="23">
+          <shapes:Path Width="23"
+                       Height="23"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Stretch="Uniform"
+                       Stroke="White"
+                       StrokeThickness="2"
+                       Data="M4,7 L7,4 L10,7 M7,4 L7,15 C7,17.2 8.8,19 11,19 L17,19 M20,17 L17,20 L14,17 M17,20 L17,9 C17,6.8 15.2,5 13,5 L7,5" />
+        </Grid>
+      </Button>
+    </StackPanel>
+
+    <!-- A nearly transparent hit-test layer lets a tap on the camera close settings.
+         The settings panel and toolbar stay above it through their higher ZIndex values. -->
+    <Border IsVisible="{Binding IsSettingsPanelVisible}"
+            Background="#01000000"
+            PointerPressed="OnSettingsBackdropPointerPressed"
+            ZIndex="150" />
+
+    <!-- This is an in-window overlay above the camera. ExperimentalAcrylicBorder with
+         BackgroundSource=Digger reveals the window background rather than sibling visuals,
+         so it hides the camera on desktop. A normal alpha-blended background is used on
+         every platform to guarantee that the live camera remains visible through the panel. -->
+    <Border IsVisible="{Binding IsSettingsPanelVisible}"
+            Width="{Binding SettingsPanelWidth}"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Stretch"
+            IsHitTestVisible="True"
+            Background="Transparent"
+            BorderBrush="#52FFFFFF"
+            BorderThickness="1,0,0,0"
+            BoxShadow="-14 0 36 0 #52000000"
+            ZIndex="200">
+      <Grid ClipToBounds="True">
+        <!-- A true in-window glass effect needs actual camera pixels behind the tint. The
+             desktop-only duplicate preview renders the same right-hand crop as the main preview;
+             BlurEffect is applied only to this background layer, never to the settings content. -->
+        <Border IsVisible="{Binding IsDesktop}"
+                IsHitTestVisible="False"
+                ClipToBounds="True">
+          <controls:CameraPreviewControl x:Name="SettingsBlurPreview"
+                                         AlignViewportRight="True"
+                                         FlipHorizontally="{Binding FlipPreviewHorizontally}"
+                                         RenderOptions.BitmapInterpolationMode="LowQuality">
+            <controls:CameraPreviewControl.Effect>
+              <BlurEffect Radius="22" />
+            </controls:CameraPreviewControl.Effect>
+          </controls:CameraPreviewControl>
+        </Border>
+
+        <!-- Desktop tint is intentionally lighter so the blurred camera remains visible. -->
+        <Border IsVisible="{Binding IsDesktop}"
+                IsHitTestVisible="False">
+          <Border.Background>
+            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+              <GradientStop Offset="0.00" Color="#52191E2A" />
+              <GradientStop Offset="0.46" Color="#3D10151E" />
+              <GradientStop Offset="1.00" Color="#4810151D" />
+            </LinearGradientBrush>
+          </Border.Background>
+        </Border>
+
+        <!-- Mobile keeps the reliable alpha-blended fallback without an extra realtime blur pass. -->
+        <Border IsVisible="{Binding IsMobile}"
+                IsHitTestVisible="False">
+          <Border.Background>
+            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+              <GradientStop Offset="0.00" Color="#68151A24" />
+              <GradientStop Offset="0.48" Color="#4D10151D" />
+              <GradientStop Offset="1.00" Color="#5C0D1118" />
+            </LinearGradientBrush>
+          </Border.Background>
+        </Border>
+
+        <!-- Soft glass highlights make the panel read as a surface instead of a dark overlay. -->
+        <Border IsVisible="{Binding IsDesktop}"
+                IsHitTestVisible="False"
+                BorderBrush="#38FFFFFF"
+                BorderThickness="1,0,0,0">
+          <Border.Background>
+            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+              <GradientStop Offset="0.00" Color="#18FFFFFF" />
+              <GradientStop Offset="0.08" Color="#08FFFFFF" />
+              <GradientStop Offset="0.42" Color="#00000000" />
+              <GradientStop Offset="1.00" Color="#08000000" />
+            </LinearGradientBrush>
+          </Border.Background>
+        </Border>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="22,50,22,22" Spacing="12">
+            <Grid ColumnDefinitions="*,Auto" Margin="0,0,58,2">
+              <TextBlock Text="{Binding Localization.SettingsTitle}"
+                         FontSize="22"
+                         FontWeight="SemiBold"
+                         VerticalAlignment="Center" />
+              <TextBlock Grid.Column="1"
+                         Text="{Binding Localization.SettingsSubtitle}"
+                         Opacity="0.52"
+                         FontSize="11"
+                         VerticalAlignment="Center" />
+            </Grid>
+
+            <TextBlock Text="{Binding Localization.CameraDescription}"
+                       Opacity="0.72"
+                       TextWrapping="Wrap" />
+            <ComboBox ItemsSource="{Binding Cameras}"
+                      SelectedItem="{Binding SelectedCamera, Mode=TwoWay}" />
+            <CheckBox Content="{Binding Localization.FixMirror}"
+                      IsChecked="{Binding FlipPreviewHorizontally, Mode=TwoWay}" />
+
+            <Border Margin="0,8,0,0"
+                    Padding="12"
+                    CornerRadius="12"
+                    Background="#301A1E29"
+                    BorderBrush="#26FFFFFF"
+                    BorderThickness="1">
+              <StackPanel Spacing="8">
+                <TextBlock Text="{Binding Localization.LanguageTitle}"
+                           FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Localization.LanguageDescription}"
+                           Opacity="0.68"
+                           TextWrapping="Wrap" />
+                <ComboBox ItemsSource="{Binding Localization.Languages}"
+                          SelectedItem="{Binding Localization.SelectedLanguage, Mode=TwoWay}" />
+                <Button Content="{Binding Localization.RescanLanguages}"
+                        HorizontalAlignment="Stretch"
+                        Command="{Binding RescanLanguagesCommand}" />
+                <TextBlock Text="{Binding Localization.LanguagesDirectory}"
+                           FontFamily="Consolas"
+                           FontSize="11"
+                           Opacity="0.55"
+                           TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Localization.LanguageFolderHint}"
+                           FontSize="11"
+                           Opacity="0.58"
+                           TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+
+            <Border Padding="12"
+                    CornerRadius="12"
+                    Background="#301A1E29"
+                    BorderBrush="#26FFFFFF"
+                    BorderThickness="1">
+              <StackPanel Spacing="8">
+                <TextBlock Text="{Binding Localization.AnimationTestTitle}"
+                           FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Localization.AnimationTestDescription}"
+                           Opacity="0.65"
+                           TextWrapping="Wrap" />
+                <ComboBox ItemsSource="{Binding EffectDemos}"
+                          SelectedItem="{Binding SelectedEffectDemo, Mode=TwoWay}" />
+                <Button Content="{Binding Localization.PlaySelectedAnimation}"
+                        HorizontalAlignment="Stretch"
+                        Command="{Binding PreviewEffectCommand}" />
+              </StackPanel>
+            </Border>
+
+            <Border Padding="12"
+                    CornerRadius="12"
+                    Background="#301A1E29"
+                    BorderBrush="#26FFFFFF"
+                    BorderThickness="1">
+              <StackPanel Spacing="7">
+                <TextBlock Text="{Binding Localization.GestureAnimationsTitle}"
+                           FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Localization.GestureAnimationsDescription}"
+                           Opacity="0.74"
+                           TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Localization.HeartSummary}" />
+                <TextBlock Text="{Binding Localization.LikeSummary}" />
+                <TextBlock Text="{Binding Localization.DislikeSummary}" />
+                <TextBlock Text="{Binding Localization.PeaceSummary}" />
+                <TextBlock Text="{Binding Localization.RockSummary}" />
+                <TextBlock Text="{Binding Localization.OtherGesturesSummary}"
+                           TextWrapping="Wrap" />
+                <TextBlock Margin="0,6,0,0"
+                           Text="{Binding Localization.TriggerRuleSummary}"
+                           Opacity="0.64"
+                           TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

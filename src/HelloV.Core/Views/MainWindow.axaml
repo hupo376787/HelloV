@@ -1,0 +1,29 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="using:HelloV.Views"
+        xmlns:vm="using:HelloV.ViewModels"
+        x:Class="HelloV.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="{Binding Localization.AppTitle}"
+        Icon="/Assets/AppIcon.png"
+        Width="1180"
+        Height="760"
+        MinWidth="760"
+        MinHeight="500"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="34"
+        WindowDecorations="Full">
+  <Grid>
+    <views:MainView />
+
+    <!-- Avalonia 12 native non-client hit-test region. This supports dragging and
+         double-click-to-maximize while keeping the system caption buttons active. -->
+    <Border Height="34"
+            Margin="0,0,150,0"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Top"
+            Background="Transparent"
+            WindowDecorationProperties.ElementRole="TitleBar"
+            ZIndex="100" />
+  </Grid>
+</Window>
