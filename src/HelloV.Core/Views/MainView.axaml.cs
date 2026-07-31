@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using HelloV.Models;
+using HelloV.Services;
 using HelloV.ViewModels;
 
 namespace HelloV.Views;
@@ -12,6 +13,7 @@ public partial class MainView : UserControl
     private static readonly long BlurPreviewIntervalTicks = Math.Max(1, Stopwatch.Frequency / 24);
     private MainViewModel? _attachedViewModel;
     private long _lastBlurPreviewTimestamp;
+    private WindowState _desktopWindowStateBeforeFullscreen = WindowState.Normal;
 
     public MainView()
     {
@@ -55,6 +57,50 @@ public partial class MainView : UserControl
 
         _attachedViewModel.PreviewFrameReady -= OnPreviewFrameReady;
         _attachedViewModel = null;
+    }
+
+    private async void OnCameraSurfacePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.ClickCount != 2
+            || DataContext is not MainViewModel vm
+            || (!vm.IsDesktop && !vm.IsBrowser))
+        {
+            return;
+        }
+
+        e.Handled = true;
+
+        if (vm.IsBrowser)
+        {
+            var toggleFullscreen = AppServices.ToggleFullscreenAsync;
+            if (toggleFullscreen is null)
+                return;
+
+            try
+            {
+                await toggleFullscreen();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"HelloV browser fullscreen toggle failed: {ex}");
+            }
+
+            return;
+        }
+
+        if (TopLevel.GetTopLevel(this) is not Window window)
+            return;
+
+        if (window.WindowState == WindowState.FullScreen)
+        {
+            window.WindowState = _desktopWindowStateBeforeFullscreen;
+            return;
+        }
+
+        _desktopWindowStateBeforeFullscreen = window.WindowState == WindowState.Minimized
+            ? WindowState.Normal
+            : window.WindowState;
+        window.WindowState = WindowState.FullScreen;
     }
 
     private void OnSettingsBackdropPointerPressed(object? sender, PointerPressedEventArgs e)

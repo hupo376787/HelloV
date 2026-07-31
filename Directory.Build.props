@@ -5,5 +5,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <Deterministic>true</Deterministic>
+
+    <!--
+      Keep the ONNX source file only once in the repository. Desktop, Android, iOS and Browser
+      projects link the same root Models file into their own platform package at build time.
+    -->
+    <HelloVModelsDirectory>$(MSBuildThisFileDirectory)Models</HelloVModelsDirectory>
   </PropertyGroup>
 </Project>

@@ -2,30 +2,36 @@
   <PropertyGroup>
     <AssemblyName>HelloV</AssemblyName>
     <RootNamespace>HelloV</RootNamespace>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0;net10.0-browser</TargetFrameworks>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
-  <!--
-    A previous release contained Services/AppleReactionMatcher.cs.
-    When a new ZIP is extracted over that old directory, the obsolete file remains because
-    archive extraction does not delete removed files. Exclude it explicitly so upgrades build
-    correctly even without first deleting the old folder.
-  -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-browser'">
+    <DefineConstants>$(DefineConstants);HELLOV_BROWSER</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <Compile Remove="Services\AppleReactionMatcher.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-browser'">
+    <Compile Remove="Services\OnnxImagePreprocessor.cs" />
+    <Compile Remove="Services\YoloV10GestureRecognizer.cs" />
+    <Compile Remove="Services\YoloXGestureRecognizer.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.0" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.0" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' != 'net10.0-browser'">
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.27.1" />
   </ItemGroup>
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
-
 </Project>

@@ -34,6 +34,9 @@ def main() -> None:
         shutil.copy2(exported, output)
 
     graph = onnx.load(str(output), load_external_data=False)
+    onnx.checker.check_model(graph)
+    if not graph.graph.node:
+        raise RuntimeError("导出的 ONNX graph 没有计算节点。")
     if not graph.graph.output:
         raise RuntimeError("导出的 ONNX 没有输出节点。")
 

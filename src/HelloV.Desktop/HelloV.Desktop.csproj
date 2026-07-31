@@ -18,17 +18,27 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Models\YOLOv10n_gestures.onnx"
-             Condition="Exists('Models\YOLOv10n_gestures.onnx')"
+    <!-- Exclude stale copies left by extracting this project over an older version. -->
+    <Content Remove="Models\YOLOv10n_gestures.onnx" />
+    <Content Remove="Models\YOLOv10x_gestures.onnx" />
+    <None Remove="Models\YOLOv10n_gestures.onnx" />
+    <None Remove="Models\YOLOv10x_gestures.onnx" />
+
+    <!-- One source model under repository-root Models, linked beside the desktop executable. -->
+    <Content Include="$(HelloVModelsDirectory)/YOLOv10n_gestures.onnx"
+             Link="YOLOv10n_gestures.onnx"
+             Condition="Exists('$(HelloVModelsDirectory)/YOLOv10n_gestures.onnx')"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="Models\YOLOv10x_gestures.onnx"
-             Condition="Exists('Models\YOLOv10x_gestures.onnx')"
+    <Content Include="$(HelloVModelsDirectory)/YOLOv10x_gestures.onnx"
+             Link="YOLOv10x_gestures.onnx"
+             Condition="Exists('$(HelloVModelsDirectory)/YOLOv10x_gestures.onnx')"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+
   <ItemGroup>
-    <Content Include="..\HelloV\Languages\*.json"
+    <Content Include="..\HelloV.Core\Languages\*.json"
              Link="Languages\%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />
@@ -42,5 +52,4 @@
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
-
 </Project>

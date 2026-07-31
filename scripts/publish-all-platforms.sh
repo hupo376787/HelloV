@@ -6,6 +6,8 @@ VERSION="${2:-1.0.0}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 HOST_OS="$(uname -s)"
 
+bash "$ROOT/scripts/publish-platform.sh" browser "$CONFIGURATION" "$VERSION"
+
 case "$HOST_OS" in
   Linux)
     TARGETS=(linux-x64 linux-arm64)

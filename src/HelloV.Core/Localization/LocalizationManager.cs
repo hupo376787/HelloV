@@ -78,6 +78,7 @@ public sealed class LocalizationManager : INotifyPropertyChanged
     public string AnimationTestTitle => Get("AnimationTestTitle");
     public string AnimationTestDescription => Get("AnimationTestDescription");
     public string PlaySelectedAnimation => Get("PlaySelectedAnimation");
+    public string PlayNextAnimation => Get("PlayNextAnimation");
     public string GestureAnimationsTitle => Get("GestureAnimationsTitle");
     public string GestureAnimationsDescription => Get("GestureAnimationsDescription");
     public string HeartSummary => Get("HeartSummary");

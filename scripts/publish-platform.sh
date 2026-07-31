@@ -6,7 +6,7 @@ CONFIGURATION="${2:-Release}"
 VERSION="${3:-1.0.0}"
 
 case "$TARGET" in
-  win-x64|win-arm64|linux-x64|linux-arm64|osx-x64|osx-arm64|android|ios-simulator|ios) ;;
+  win-x64|win-arm64|linux-x64|linux-arm64|osx-x64|osx-arm64|browser|android|ios-simulator|ios) ;;
   *)
     echo "不支持的目标：$TARGET" >&2
     exit 2
@@ -25,6 +25,7 @@ HOST_OS="$(uname -s)"
 DESKTOP_PROJECT="$ROOT/src/HelloV.Desktop/HelloV.Desktop.csproj"
 ANDROID_PROJECT="$ROOT/src/HelloV.Android/HelloV.Android.csproj"
 IOS_PROJECT="$ROOT/src/HelloV.iOS/HelloV.iOS.csproj"
+BROWSER_PROJECT="$ROOT/src/HelloV.Browser/HelloV.Browser.csproj"
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -100,8 +101,7 @@ copy_model_if_available() {
 
   for model_name in "${model_names[@]}"; do
     for candidate in \
-      "$ROOT/$model_name" \
-      "$ROOT/src/HelloV.Desktop/Models/$model_name"; do
+      "$ROOT/Models/$model_name"; do
       if [[ ! -f "$candidate" ]]; then
         continue
       fi
@@ -120,7 +120,7 @@ copy_model_if_available() {
   local supported_names="YOLOv10n_gestures.onnx / YOLOv10x_gestures.onnx"
   if [[ "${HELLOV_REQUIRE_MODEL:-0}" == "1" ]]; then
     echo "发布标签构建要求模型文件，但未找到 $supported_names。" >&2
-    echo "请放在仓库根目录或 src/HelloV.Desktop/Models/。" >&2
+    echo "请放在仓库根目录的 Models/ 文件夹。" >&2
     exit 1
   fi
 
@@ -250,6 +250,32 @@ case "$TARGET" in
       "HelloV-Desktop-$TARGET-$VERSION" \
       "$OUTPUT" \
       "$([[ "$TARGET" == osx-* ]] && echo 1 || echo 0)"
+    ;;
+
+  browser)
+    if [[ "${HELLOV_REQUIRE_MODEL:-0}" == "1" \
+       && ! -f "$ROOT/Models/YOLOv10n_gestures.onnx" \
+       && ! -f "$ROOT/Models/YOLOv10x_gestures.onnx" ]]; then
+      echo "浏览器发布要求 ONNX 模型。请将 YOLOv10n_gestures.onnx 或 YOLOv10x_gestures.onnx 放入 Models/。" >&2
+      exit 1
+    fi
+
+    FRAMEWORK="net10.0-browser"
+    PUBLISH_ROOT="$ROOT/src/HelloV.Browser/bin/$CONFIGURATION/$FRAMEWORK/publish"
+    rm -rf "$PUBLISH_ROOT"
+    run dotnet workload restore "$BROWSER_PROJECT"
+    run dotnet publish "$BROWSER_PROJECT" \
+      -c "$CONFIGURATION" \
+      -f "$FRAMEWORK" \
+      "-p:Version=$VERSION" \
+      "-p:InformationalVersion=$VERSION"
+
+    STATIC_SITE="$PUBLISH_ROOT/wwwroot"
+    if [[ ! -d "$STATIC_SITE" ]]; then
+      echo "浏览器静态站点不存在：$STATIC_SITE" >&2
+      exit 1
+    fi
+    complete_package "HelloV-Browser-$VERSION" "$STATIC_SITE"
     ;;
 
   android)

@@ -1,20 +1,17 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $toolsDir = Join-Path $repoRoot ".model-tools"
 $venvDir = Join-Path $toolsDir "venv"
 $checkpoint = Join-Path $toolsDir "YOLOv10n_gestures.pt"
-$modelDir = Join-Path $repoRoot "src\HelloV.Desktop\Models"
+$modelDir = Join-Path $repoRoot "Models"
 $output = Join-Path $modelDir "YOLOv10n_gestures.onnx"
-$androidModelDir = Join-Path $repoRoot "src\HelloV.Android\Assets"
-$androidOutput = Join-Path $androidModelDir "YOLOv10n_gestures.onnx"
 $exportScript = Join-Path $PSScriptRoot "export-hagridv2-onnx.py"
 $checkpointUrl = "https://rndml-team-cv.obs.ru-moscow-1.hc.sbercloud.ru/datasets/hagrid_v2/models/YOLOv10n_gestures.pt"
 
 New-Item -ItemType Directory -Force -Path $toolsDir | Out-Null
 New-Item -ItemType Directory -Force -Path $modelDir | Out-Null
-New-Item -ItemType Directory -Force -Path $androidModelDir | Out-Null
 
 if (-not (Test-Path -LiteralPath $exportScript -PathType Leaf)) {
     throw "Export script was not found: $exportScript"
@@ -81,7 +78,4 @@ if (-not (Test-Path -LiteralPath $output -PathType Leaf)) {
     throw "The exporter completed without creating the expected model: $output"
 }
 
-Copy-Item -LiteralPath $output -Destination $androidOutput -Force
-
-Write-Host "Desktop model: $output"
-Write-Host "Android asset model: $androidOutput"
+Write-Host "Shared Desktop / Android / iOS / Browser model: $output"

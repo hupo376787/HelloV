@@ -11,6 +11,12 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $targets = @('win-x64', 'win-arm64')
 
+& (Join-Path $PSScriptRoot 'publish-platform.ps1') `
+    -Target browser `
+    -Configuration $Configuration `
+    -Version $Version
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 foreach ($target in $targets) {
     & (Join-Path $PSScriptRoot 'publish-platform.ps1') `
         -Target $target `

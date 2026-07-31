@@ -1,4 +1,4 @@
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
 VisualStudioVersion = 18.7.11925.98 stable
 MinimumVisualStudioVersion = 10.0.40219.1
@@ -9,6 +9,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HelloV.Android", "src\HelloV.Android\HelloV.Android.csproj", "{C62F0759-A3ED-4ED0-AFA2-8FD83D08445A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HelloV.iOS", "src\HelloV.iOS\HelloV.iOS.csproj", "{AC754D68-B807-47FA-AC61-5F67C20BBA64}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HelloV.Browser", "src\HelloV.Browser\HelloV.Browser.csproj", "{D5C52838-5C56-4CC8-83CE-13E4FB7CE64E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -36,6 +38,10 @@ Global
 		{AC754D68-B807-47FA-AC61-5F67C20BBA64}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AC754D68-B807-47FA-AC61-5F67C20BBA64}.Release|Any CPU.Build.0 = Release|Any CPU
 		{AC754D68-B807-47FA-AC61-5F67C20BBA64}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{D5C52838-5C56-4CC8-83CE-13E4FB7CE64E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D5C52838-5C56-4CC8-83CE-13E4FB7CE64E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D5C52838-5C56-4CC8-83CE-13E4FB7CE64E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D5C52838-5C56-4CC8-83CE-13E4FB7CE64E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

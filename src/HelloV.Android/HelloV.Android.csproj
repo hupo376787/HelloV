@@ -12,11 +12,17 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Either YOLOv10n_gestures.onnx or YOLOv10x_gestures.onnx may be packaged. -->
-    <AndroidAsset Update="Assets\YOLOv10n_gestures.onnx"
-                  Condition="Exists('Assets\YOLOv10n_gestures.onnx')" />
-    <AndroidAsset Update="Assets\YOLOv10x_gestures.onnx"
-                  Condition="Exists('Assets\YOLOv10x_gestures.onnx')" />
+    <!-- Exclude stale copies left under Android/Assets by older project versions. -->
+    <AndroidAsset Remove="Assets\YOLOv10n_gestures.onnx" />
+    <AndroidAsset Remove="Assets\YOLOv10x_gestures.onnx" />
+
+    <!-- Link the one repository-root model into the APK asset root. -->
+    <AndroidAsset Include="$(HelloVModelsDirectory)/YOLOv10n_gestures.onnx"
+                  Link="YOLOv10n_gestures.onnx"
+                  Condition="Exists('$(HelloVModelsDirectory)/YOLOv10n_gestures.onnx')" />
+    <AndroidAsset Include="$(HelloVModelsDirectory)/YOLOv10x_gestures.onnx"
+                  Link="YOLOv10x_gestures.onnx"
+                  Condition="Exists('$(HelloVModelsDirectory)/YOLOv10x_gestures.onnx')" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,5 +31,10 @@
     <PackageReference Include="Xamarin.AndroidX.Camera.Core" Version="1.6.1.1" />
     <PackageReference Include="Xamarin.AndroidX.Camera.Camera2" Version="1.6.1.1" />
     <PackageReference Include="Xamarin.AndroidX.Camera.Lifecycle" Version="1.6.1.1" />
+
+    <!-- Keep the AndroidX Lifecycle family on one version to avoid NU1608 conflicts. -->
+    <PackageReference Include="Xamarin.AndroidX.Lifecycle.Process" Version="2.11.0.1" />
+    <PackageReference Include="Xamarin.AndroidX.Lifecycle.ViewModelSavedState" Version="2.11.0.1" />
+    <PackageReference Include="Xamarin.AndroidX.Lifecycle.ViewModelSavedState.Android" Version="2.11.0.1" />
   </ItemGroup>
 </Project>

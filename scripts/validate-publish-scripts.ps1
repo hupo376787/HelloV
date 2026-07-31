@@ -24,6 +24,8 @@ $required = @(
     'src/HelloV.Desktop/HelloV.Desktop.csproj',
     'src/HelloV.Android/HelloV.Android.csproj',
     'src/HelloV.iOS/HelloV.iOS.csproj',
+    'src/HelloV.Browser/HelloV.Browser.csproj',
+    'src/HelloV.Browser/wwwroot/js/hellov-browser.js',
     '.github/workflows/build-all-platforms.yml')
 
 foreach ($relativePath in $required) {

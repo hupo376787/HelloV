@@ -103,6 +103,55 @@ jobs:
           compression-level: 0
           retention-days: 14
 
+  browser:
+    name: Browser WebAssembly
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+
+      - name: Install .NET 10 SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Resolve package version
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="0.0.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Package version: $VERSION"
+
+      - name: Prepare scripts
+        shell: bash
+        run: chmod +x scripts/*.sh one-click-publish/*.sh one-click-publish/*.command
+
+      - name: Publish browser static site
+        shell: bash
+        env:
+          HELLOV_REQUIRE_MODEL: ${{ startsWith(github.ref, 'refs/tags/v') && '1' || '0' }}
+        run: >-
+          bash ./scripts/publish-platform.sh
+          browser
+          Release
+          '${{ steps.version.outputs.value }}'
+
+      - name: Upload browser package
+        uses: actions/upload-artifact@v7
+        with:
+          name: HelloV-Browser
+          path: artifacts/HelloV-Browser-${{ steps.version.outputs.value }}.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
   android:
     name: Android APK and AAB
     runs-on: ubuntu-latest
@@ -351,7 +400,7 @@ jobs:
 
   release:
     name: Create GitHub Release
-    needs: [desktop, android, ios]
+    needs: [desktop, browser, android, ios]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     timeout-minutes: 20

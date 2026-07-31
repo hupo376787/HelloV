@@ -5,10 +5,13 @@
              xmlns:shapes="using:Avalonia.Controls.Shapes"
              x:Class="HelloV.Views.MainView"
              x:DataType="vm:MainViewModel">
-  <Grid x:Name="RootGrid" Background="#090A0F" ClipToBounds="True">
+  <Grid x:Name="RootGrid" Background="Transparent" ClipToBounds="True">
     <!-- Camera always occupies the full client area. The settings panel floats above it. -->
-    <Grid ClipToBounds="True">
-      <Border Background="#11131B">
+    <Grid x:Name="CameraSurface"
+          ClipToBounds="True"
+          PointerPressed="OnCameraSurfacePointerPressed">
+      <Border Background="#11131B"
+              IsVisible="{Binding ShowManagedCameraPreview}">
         <controls:CameraPreviewControl x:Name="CameraPreview"
                                        FlipHorizontally="{Binding FlipPreviewHorizontally}"
                                        RenderOptions.BitmapInterpolationMode="LowQuality" />
@@ -266,9 +269,16 @@
                            TextWrapping="Wrap" />
                 <ComboBox ItemsSource="{Binding EffectDemos}"
                           SelectedItem="{Binding SelectedEffectDemo, Mode=TwoWay}" />
-                <Button Content="{Binding Localization.PlaySelectedAnimation}"
-                        HorizontalAlignment="Stretch"
-                        Command="{Binding PreviewEffectCommand}" />
+                <Grid ColumnDefinitions="*,8,*">
+                  <Button Grid.Column="0"
+                          Content="{Binding Localization.PlaySelectedAnimation}"
+                          HorizontalAlignment="Stretch"
+                          Command="{Binding PreviewEffectCommand}" />
+                  <Button Grid.Column="2"
+                          Content="{Binding Localization.PlayNextAnimation}"
+                          HorizontalAlignment="Stretch"
+                          Command="{Binding PreviewNextEffectCommand}" />
+                </Grid>
               </StackPanel>
             </Border>
 
@@ -283,11 +293,41 @@
                 <TextBlock Text="{Binding Localization.GestureAnimationsDescription}"
                            Opacity="0.74"
                            TextWrapping="Wrap" />
-                <TextBlock Text="{Binding Localization.HeartSummary}" />
-                <TextBlock Text="{Binding Localization.LikeSummary}" />
-                <TextBlock Text="{Binding Localization.DislikeSummary}" />
-                <TextBlock Text="{Binding Localization.PeaceSummary}" />
-                <TextBlock Text="{Binding Localization.RockSummary}" />
+                <Grid ColumnDefinitions="24,*">
+                  <controls:EmojiIcon Emoji="❤️" Width="20" Height="20" />
+                  <TextBlock Grid.Column="1"
+                             Margin="7,0,0,0"
+                             Text="{Binding Localization.HeartSummary}"
+                             TextWrapping="Wrap" />
+                </Grid>
+                <Grid ColumnDefinitions="24,*">
+                  <controls:EmojiIcon Emoji="👍" Width="20" Height="20" />
+                  <TextBlock Grid.Column="1"
+                             Margin="7,0,0,0"
+                             Text="{Binding Localization.LikeSummary}"
+                             TextWrapping="Wrap" />
+                </Grid>
+                <Grid ColumnDefinitions="24,*">
+                  <controls:EmojiIcon Emoji="👎" Width="20" Height="20" />
+                  <TextBlock Grid.Column="1"
+                             Margin="7,0,0,0"
+                             Text="{Binding Localization.DislikeSummary}"
+                             TextWrapping="Wrap" />
+                </Grid>
+                <Grid ColumnDefinitions="24,*">
+                  <controls:EmojiIcon Emoji="✌️" Width="20" Height="20" />
+                  <TextBlock Grid.Column="1"
+                             Margin="7,0,0,0"
+                             Text="{Binding Localization.PeaceSummary}"
+                             TextWrapping="Wrap" />
+                </Grid>
+                <Grid ColumnDefinitions="24,*">
+                  <controls:EmojiIcon Emoji="🤘" Width="20" Height="20" />
+                  <TextBlock Grid.Column="1"
+                             Margin="7,0,0,0"
+                             Text="{Binding Localization.RockSummary}"
+                             TextWrapping="Wrap" />
+                </Grid>
                 <TextBlock Text="{Binding Localization.OtherGesturesSummary}"
                            TextWrapping="Wrap" />
                 <TextBlock Margin="0,6,0,0"

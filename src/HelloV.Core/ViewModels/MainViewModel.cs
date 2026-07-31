@@ -14,6 +14,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
 {
     private readonly ICameraService _cameraService;
     private readonly Func<IGestureRecognizer> _recognizerFactory;
+    private readonly IExternalGestureSource? _externalGestureSource;
+    private readonly IPreviewMirroringController? _previewMirroringController;
     private readonly object _recognizerGate = new();
     private readonly GestureEffectMatcher _effectMatcher;
     private readonly GestureStabilizer _stabilizer;
@@ -53,33 +55,41 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
         AppPlatformKind platformKind,
         LocalizationManager localization)
     {
-        _cameraService = cameraService;
+        _cameraService = cameraService ?? throw new ArgumentNullException(nameof(cameraService));
         _recognizerFactory = recognizerFactory ?? throw new ArgumentNullException(nameof(recognizerFactory));
+        _externalGestureSource = cameraService as IExternalGestureSource;
+        _previewMirroringController = cameraService as IPreviewMirroringController;
         Localization = localization ?? throw new ArgumentNullException(nameof(localization));
         _effectMatcher = new GestureEffectMatcher(Localization);
+        IsBrowser = platformKind == AppPlatformKind.Browser;
         IsDesktop = platformKind == AppPlatformKind.Desktop;
         IsMobile = !IsDesktop;
         SettingsPanelWidth = IsMobile ? 330d : 360d;
 
-        // On phones the user already sees the recognized gesture label before the effect. Waiting
-        // for three or four slow ONNX passes made the animation appear several seconds late. One
-        // positive mobile result now triggers immediately; latching still prevents repeated effects
-        // until the gesture is released. Desktop retains the stricter multi-frame filter.
-        _stabilizer = IsMobile
+        // Browser and mobile targets trigger on the first positive result because their ONNX passes
+        // are slower than desktop. Latching still prevents a held gesture from repeatedly firing;
+        // desktop keeps the stricter multi-frame filter for extra false-positive suppression.
+        _stabilizer = IsBrowser
             ? new GestureStabilizer(
                 requiredHits: 1,
-                requiredMissesToRelease: 3,
+                requiredMissesToRelease: 2,
                 addExtraHitForCommonGestures: false)
-            : new GestureStabilizer(
-                requiredHits: 3,
-                requiredMissesToRelease: 5);
+            : IsMobile
+                ? new GestureStabilizer(
+                    requiredHits: 1,
+                    requiredMissesToRelease: 3,
+                    addExtraHitForCommonGestures: false)
+                : new GestureStabilizer(
+                    requiredHits: 3,
+                    requiredMissesToRelease: 5);
 
         // Some DirectShow drivers expose an unmirrored preview while users expect a mirror.
         // This is render-only and can be toggled without touching camera/inference buffers.
-        _flipPreviewHorizontally = IsDesktop;
+        _flipPreviewHorizontally = IsDesktop || IsBrowser;
+        _previewMirroringController?.SetPreviewMirroring(_flipPreviewHorizontally);
         // The busy gate still guarantees a single ONNX invocation at a time. A shorter interval
         // only lets the next fresh frame enter as soon as the previous inference finishes.
-        _inferenceIntervalMs = IsMobile ? 75 : 140;
+        _inferenceIntervalMs = IsBrowser ? 50 : IsMobile ? 75 : 140;
 
         SwitchCameraCommand = new AsyncRelayCommand(
             SwitchMobileCameraAsync,
@@ -87,11 +97,21 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
         PreviewEffectCommand = new AsyncRelayCommand(
             PreviewSelectedEffectAsync,
             () => SelectedEffectDemo is not null);
+        PreviewNextEffectCommand = new AsyncRelayCommand(
+            PreviewNextEffectAsync,
+            () => EffectDemos.Count > 0);
         ToggleSettingsPanelCommand = new AsyncRelayCommand(ToggleSettingsPanelAsync);
         CloseSettingsPanelCommand = new AsyncRelayCommand(CloseSettingsPanelAsync);
         RescanLanguagesCommand = new AsyncRelayCommand(RescanLanguagesAsync);
 
         Localization.LanguageChanged += OnLanguageChanged;
+        if (_externalGestureSource is not null)
+        {
+            _externalGestureSource.GestureFrameReady += OnExternalGestureFrameReady;
+            _externalGestureSource.FrameStatisticsChanged += OnExternalFrameStatisticsChanged;
+            _externalGestureSource.ModelStateChanged += OnExternalModelStateChanged;
+        }
+
         RebuildEffectDemos();
         _gestureText = Localization["WaitingGesture"];
         UpdateCombinedStatus();
@@ -102,9 +122,12 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
     public LocalizationManager Localization { get; }
     public bool IsDesktop { get; }
     public bool IsMobile { get; }
+    public bool IsBrowser { get; }
+    public bool ShowManagedCameraPreview => true;
     public double SettingsPanelWidth { get; }
     public AsyncRelayCommand SwitchCameraCommand { get; }
     public AsyncRelayCommand PreviewEffectCommand { get; }
+    public AsyncRelayCommand PreviewNextEffectCommand { get; }
     public AsyncRelayCommand ToggleSettingsPanelCommand { get; }
     public AsyncRelayCommand CloseSettingsPanelCommand { get; }
     public AsyncRelayCommand RescanLanguagesCommand { get; }
@@ -118,7 +141,11 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
     public bool FlipPreviewHorizontally
     {
         get => _flipPreviewHorizontally;
-        set => SetField(ref _flipPreviewHorizontally, value);
+        set
+        {
+            if (SetField(ref _flipPreviewHorizontally, value))
+                _previewMirroringController?.SetPreviewMirroring(value);
+        }
     }
 
     public CameraDeviceInfo? SelectedCamera
@@ -194,10 +221,10 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
         SetCameraState("StatusEnumeratingCameras");
         SetModelState("StatusLoadingModel");
 
-        // Start ONNX Runtime initialization on a worker thread before touching the camera.
-        // Do not await it here: the window and preview can become usable while the model graph
-        // is being read and optimized in the background.
-        _recognizerLoadTask = LoadRecognizerAsync();
+        // Native platforms load ONNX Runtime in .NET. BrowserCameraService performs inference
+        // with ONNX Runtime Web and reports model state/results through IExternalGestureSource.
+        if (_externalGestureSource is null)
+            _recognizerLoadTask = LoadRecognizerAsync();
 
         try
         {
@@ -381,6 +408,22 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
         return Task.CompletedTask;
     }
 
+    private Task PreviewNextEffectAsync()
+    {
+        if (EffectDemos.Count == 0)
+            return Task.CompletedTask;
+
+        var currentIndex = SelectedEffectDemo is null
+            ? -1
+            : EffectDemos.IndexOf(SelectedEffectDemo);
+        var nextIndex = (currentIndex + 1) % EffectDemos.Count;
+
+        // Update the bound selection first so the ComboBox always reflects the animation
+        // that is about to play. Modulo wraps the final item back to the first item.
+        SelectedEffectDemo = EffectDemos[nextIndex];
+        return PreviewSelectedEffectAsync();
+    }
+
     private ValueTask OnFrameAsync(VideoFrame rawFrame)
     {
         if (_lifetime.IsCancellationRequested)
@@ -475,24 +518,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
             // OnnxImagePreprocessor samples rotation/mirroring metadata directly while resizing to
             // the model input. Avoiding a full 1080p rotate-and-copy removes a large part of the
             // mobile recognition latency.
-            var frameResult = recognizer.Recognize(frame);
-            var currentReaction = _effectMatcher.Match(frameResult);
-            var triggeredReaction = _stabilizer.Push(currentReaction);
-            var gestureText = currentReaction?.DisplayText ?? DescribeDetections(frameResult);
-
-            Dispatcher.UIThread.Post(() =>
-            {
-                GestureText = gestureText;
-                if (triggeredReaction is null || triggeredReaction.Kind == ReactionKind.None)
-                    return;
-
-                // Anchor first, then sequence: ReactionOverlay snapshots the anchor when the
-                // sequence changes, so animations originate close to the detected hands.
-                ReactionAnchorX = triggeredReaction.Bounds.CenterX;
-                ReactionAnchorY = triggeredReaction.Bounds.CenterY;
-                Reaction = triggeredReaction.Kind;
-                ReactionSequence++;
-            });
+            ProcessGestureResult(recognizer.Recognize(frame));
         }
         catch (Exception ex)
         {
@@ -504,6 +530,82 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
             frame.Dispose();
             Volatile.Write(ref _inferenceBusy, 0);
         }
+    }
+
+    private void OnExternalGestureFrameReady(GestureFrameResult result)
+    {
+        if (_lifetime.IsCancellationRequested || Volatile.Read(ref _disposeState) != 0)
+            return;
+
+        ProcessGestureResult(result);
+    }
+
+    private void ProcessGestureResult(GestureFrameResult frameResult)
+    {
+        var currentReaction = _effectMatcher.Match(frameResult);
+        var triggeredReaction = _stabilizer.Push(currentReaction);
+        var gestureText = currentReaction?.DisplayText ?? DescribeDetections(frameResult);
+
+        void ApplyGestureResult()
+        {
+            if (_lifetime.IsCancellationRequested || Volatile.Read(ref _disposeState) != 0)
+                return;
+
+            // Update the recognition label and start the effect in the same UI operation. Browser
+            // callbacks commonly already run on the Avalonia UI thread; applying immediately avoids
+            // leaving the effect behind queued preview-render work.
+            GestureText = gestureText;
+            if (triggeredReaction is null || triggeredReaction.Kind == ReactionKind.None)
+                return;
+
+            ReactionAnchorX = triggeredReaction.Bounds.CenterX;
+            ReactionAnchorY = triggeredReaction.Bounds.CenterY;
+            Reaction = triggeredReaction.Kind;
+            ReactionSequence++;
+        }
+
+        if (Dispatcher.UIThread.CheckAccess())
+            ApplyGestureResult();
+        else
+            Dispatcher.UIThread.Post(ApplyGestureResult, DispatcherPriority.Send);
+    }
+
+    private void OnExternalFrameStatisticsChanged(CameraFrameStatistics statistics)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_lifetime.IsCancellationRequested || Volatile.Read(ref _disposeState) != 0)
+                return;
+
+            ResolutionText = statistics.FramesPerSecond > 0
+                ? $"{statistics.Width} × {statistics.Height} · {statistics.FramesPerSecond:F0} FPS"
+                : $"{statistics.Width} × {statistics.Height}";
+        });
+    }
+
+    private void OnExternalModelStateChanged(ExternalModelState state)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_lifetime.IsCancellationRequested || Volatile.Read(ref _disposeState) != 0)
+                return;
+
+            switch (state.Status)
+            {
+                case ExternalModelStatus.Ready:
+                    SetModelState("StatusModelLoaded", state.StateText, state.LoadSeconds);
+                    break;
+                case ExternalModelStatus.Missing:
+                    SetModelState("StatusModelMissing", GestureRecognizerFactory.SupportedModelNamesText);
+                    break;
+                case ExternalModelStatus.Failed:
+                    SetModelState("StatusModelLoadFailed", state.ErrorMessage ?? state.StateText);
+                    break;
+                default:
+                    SetModelState("StatusLoadingModel");
+                    break;
+            }
+        });
     }
 
     private string DescribeDetections(GestureFrameResult result)
@@ -522,6 +624,14 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
         // The view synchronously copies frame.Pixels into one persistent WriteableBitmap.
         // Rotation/mirroring metadata is rendered by CameraPreviewControl without changing pixels.
         PreviewFrameReady?.Invoke(frame);
+
+        // BrowserCameraService deliberately transfers a bounded 640 px preview frame through
+        // JS/WASM at about 15 FPS, while the camera track itself can still be 1280x720 at 30 FPS.
+        // IExternalGestureSource reports the real camera-track statistics separately. Updating the
+        // same label here with the downscaled preview statistics made the UI alternate between
+        // values such as 1280x720 / 30 FPS and 640x360 / 15 FPS.
+        if (_externalGestureSource is not null)
+            return;
 
         var normalizedRotation = ((frame.RotationDegrees % 360) + 360) % 360;
         var displayWidth = normalizedRotation is 90 or 270 ? frame.Height : frame.Width;
@@ -592,6 +702,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
               ?? EffectDemos.FirstOrDefault();
         OnPropertyChanged(nameof(SelectedEffectDemo));
         PreviewEffectCommand.RaiseCanExecuteChanged();
+        PreviewNextEffectCommand.RaiseCanExecuteChanged();
     }
 
     private void DropPendingPreviewFrame() =>
@@ -603,6 +714,13 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
             return;
 
         Localization.LanguageChanged -= OnLanguageChanged;
+        if (_externalGestureSource is not null)
+        {
+            _externalGestureSource.GestureFrameReady -= OnExternalGestureFrameReady;
+            _externalGestureSource.FrameStatisticsChanged -= OnExternalFrameStatisticsChanged;
+            _externalGestureSource.ModelStateChanged -= OnExternalModelStateChanged;
+        }
+
         _lifetime.Cancel();
         DropPendingPreviewFrame();
         try

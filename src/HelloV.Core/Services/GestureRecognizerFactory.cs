@@ -17,11 +17,17 @@ public static class GestureRecognizerFactory
 
     public static IGestureRecognizer CreateDefault()
     {
+#if HELLOV_BROWSER
+        // Browser recognition is supplied by HelloV.Browser through ONNX Runtime Web. Keeping a
+        // no-op fallback here prevents the native ONNX Runtime package from entering the WASM app.
+        return new MissingModelGestureRecognizer();
+#else
         var modelPath = FindModel();
         if (modelPath is not null)
             return new YoloV10GestureRecognizer(modelPath);
 
         return new MissingModelGestureRecognizer();
+#endif
     }
 
     /// <summary>

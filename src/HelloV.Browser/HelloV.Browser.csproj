@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <PropertyGroup>
+    <AssemblyName>HelloV.Browser</AssemblyName>
+    <RootNamespace>HelloV.Browser</RootNamespace>
+    <TargetFramework>net10.0-browser</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../HelloV.Core/HelloV.Core.csproj" />
+    <PackageReference Include="Avalonia.Browser" Version="12.1.0" />
+    <PackageReference Include="Quick.AvaloniaFonts.SourceHanSansCN.Slim" Version="1.0.0" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <!-- Embed a browser fallback copy so model loading doesn't depend on the development static
+         asset manifest. The JavaScript loader still supports wwwroot/models as a fallback. -->
+    <AvaloniaResource Include="$(HelloVModelsDirectory)/YOLOv10n_gestures.onnx"
+                      Link="Models/YOLOv10n_gestures.onnx"
+                      Condition="Exists('$(HelloVModelsDirectory)/YOLOv10n_gestures.onnx')" />
+    <AvaloniaResource Include="$(HelloVModelsDirectory)/YOLOv10x_gestures.onnx"
+                      Link="Models/YOLOv10x_gestures.onnx"
+                      Condition="Exists('$(HelloVModelsDirectory)/YOLOv10x_gestures.onnx')" />
+  </ItemGroup>
+
+  <Target Name="WarnWhenBrowserGestureModelIsMissing" BeforeTargets="Build"
+          Condition="!Exists('$(HelloVModelsDirectory)/YOLOv10n_gestures.onnx') And
+                     !Exists('$(HelloVModelsDirectory)/YOLOv10x_gestures.onnx') And
+                     !Exists('wwwroot/models/YOLOv10n_gestures.onnx') And
+                     !Exists('wwwroot/models/YOLOv10x_gestures.onnx')">
+    <Warning Text="HelloV Browser 没有找到源模型。请将 YOLOv10n_gestures.onnx 或 YOLOv10x_gestures.onnx 放到项目根目录 Models，或 HelloV.Browser/wwwroot/models；bin/obj 中的文件不作为源资源。" />
+  </Target>
+
+</Project>

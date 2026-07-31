@@ -4,7 +4,7 @@ param(
         'win-x64', 'win-arm64',
         'linux-x64', 'linux-arm64',
         'osx-x64', 'osx-arm64',
-        'android', 'ios-simulator', 'ios')]
+        'browser', 'android', 'ios-simulator', 'ios')]
     [string]$Target = 'win-x64',
 
     [ValidateSet('Debug', 'Release')]
@@ -26,6 +26,7 @@ $stagingRoot = Join-Path $artifactsRoot '.staging'
 $desktopProject = Join-Path $root 'src/HelloV.Desktop/HelloV.Desktop.csproj'
 $androidProject = Join-Path $root 'src/HelloV.Android/HelloV.Android.csproj'
 $iosProject = Join-Path $root 'src/HelloV.iOS/HelloV.iOS.csproj'
+$browserProject = Join-Path $root 'src/HelloV.Browser/HelloV.Browser.csproj'
 $isWindowsHost = $env:OS -eq 'Windows_NT'
 $isMacHost = $false
 
@@ -151,8 +152,7 @@ function Copy-ModelIfAvailable {
 
     foreach ($modelName in $modelNames) {
         $candidates = @(
-            (Join-Path $root $modelName),
-            (Join-Path $root "src/HelloV.Desktop/Models/$modelName"))
+            (Join-Path $root "Models/$modelName"))
 
         foreach ($candidate in $candidates) {
             if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
@@ -172,7 +172,7 @@ function Copy-ModelIfAvailable {
 
     $supportedNames = $modelNames -join ' / '
     if ($env:HELLOV_REQUIRE_MODEL -eq '1') {
-        throw "发布标签构建要求模型文件，但未找到 $supportedNames。请放在仓库根目录或 src/HelloV.Desktop/Models/。"
+        throw "发布标签构建要求模型文件，但未找到 $supportedNames。请放在仓库根目录的 Models/ 文件夹。"
     }
 
     Write-Warning "未找到 $supportedNames，桌面包仍会生成，但手势识别不可用。"
@@ -320,6 +320,37 @@ if ($Target -in @('win-x64', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64',
         -PackageName "HelloV-Desktop-$Target-$Version" `
         -SourceDirectory $output `
         -PreferMacDitto:$preferMacDitto
+}
+elseif ($Target -eq 'browser') {
+    if ($env:HELLOV_REQUIRE_MODEL -eq '1' -and
+        -not (Test-Path -LiteralPath (Join-Path $root 'Models/YOLOv10n_gestures.onnx') -PathType Leaf) -and
+        -not (Test-Path -LiteralPath (Join-Path $root 'Models/YOLOv10x_gestures.onnx') -PathType Leaf)) {
+        throw '浏览器发布要求 ONNX 模型。请将 YOLOv10n_gestures.onnx 或 YOLOv10x_gestures.onnx 放入 Models/。'
+    }
+
+    $framework = 'net10.0-browser'
+    $browserProjectDirectory = Split-Path -Parent $browserProject
+    $publishRoot = Join-Path $browserProjectDirectory "bin/$Configuration/$framework/publish"
+    if (Test-Path -LiteralPath $publishRoot) {
+        Remove-Item -LiteralPath $publishRoot -Recurse -Force
+    }
+
+    Invoke-External -FilePath 'dotnet' -Arguments @('workload', 'restore', $browserProject)
+    Invoke-External -FilePath 'dotnet' -Arguments @(
+        'publish', $browserProject,
+        '-c', $Configuration,
+        '-f', $framework,
+        "-p:Version=$Version",
+        "-p:InformationalVersion=$Version")
+
+    $staticSite = Join-Path $publishRoot 'wwwroot'
+    if (-not (Test-Path -LiteralPath $staticSite -PathType Container)) {
+        throw "浏览器静态站点不存在：$staticSite"
+    }
+
+    Complete-Package `
+        -PackageName "HelloV-Browser-$Version" `
+        -SourceDirectory $staticSite
 }
 elseif ($Target -eq 'android') {
     $framework = 'net10.0-android'

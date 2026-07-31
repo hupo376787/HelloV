@@ -35,6 +35,17 @@ public sealed class ReactionOverlay : Control
             FontStyle.Normal,
             FontWeight.Normal);
 
+    private const double UnifiedEffectScale = 1.5;
+    private const double DesktopParticleScale = 1.24;
+    private const double DesktopEmojiScale = 1.16;
+    private const double EffectStrokeScale = 1.45;
+    private const double LaserStrokeScale = 1.90;
+
+    // Use one enhanced effect profile on every target so desktop, mobile and browser render the
+    // same particle density, decorations and dimensions. UnifiedEffectScale is applied on top of
+    // the previous desktop sizing requested by the UI.
+    private static readonly bool UseUnifiedLargeEffectProfile = true;
+
     private static readonly ConcurrentDictionary<string, IBrush> BrushCache = new();
 
     private static readonly IBrush[] AccentBrushes =
@@ -109,11 +120,11 @@ public sealed class ReactionOverlay : Control
                     Math.Max(0.04, _anchorX - 0.22), Math.Min(0.96, _anchorX + 0.22),
                     Math.Min(0.95, _anchorY + 0.05), Math.Min(1.12, _anchorY + 0.38),
                     -0.10, 0.10, -0.46, -0.17,
-                    IsDesktopPlatform ? 18 : 15, IsDesktopPlatform ? 44 : 34);
+                    UseUnifiedLargeEffectProfile ? 18 : 15, UseUnifiedLargeEffectProfile ? 44 : 34);
                 break;
             case ReactionKind.Balloons:
                 CreateFloatingParticles(EffectParticleCount(38, 16), 0.01, 0.99, 0.90, 1.34, -0.08, 0.08, -0.48, -0.18,
-                    IsDesktopPlatform ? 30 : 22, IsDesktopPlatform ? 70 : 46);
+                    UseUnifiedLargeEffectProfile ? 30 : 22, UseUnifiedLargeEffectProfile ? 70 : 46);
                 break;
             case ReactionKind.Rain:
                 CreateRainParticles(EffectParticleCount(90, 56));
@@ -121,7 +132,7 @@ public sealed class ReactionOverlay : Control
             case ReactionKind.Confetti:
             case ReactionKind.RibbonCannon:
                 CreateBurstParticles(EffectParticleCount(180, 72), 0.13, 0.72, -1.12, -0.38,
-                    IsDesktopPlatform ? 7 : 5, IsDesktopPlatform ? 17 : 12);
+                    UseUnifiedLargeEffectProfile ? 7 : 5, UseUnifiedLargeEffectProfile ? 17 : 12);
                 break;
             case ReactionKind.PinkSparkles:
             case ReactionKind.PinchSpark:
@@ -142,7 +153,7 @@ public sealed class ReactionOverlay : Control
                 break;
             case ReactionKind.Fireworks:
                 CreateBurstParticles(EffectParticleCount(120, 52), 0.10, 0.66, -0.48, 0.48,
-                    IsDesktopPlatform ? 5 : 3, IsDesktopPlatform ? 13 : 9);
+                    UseUnifiedLargeEffectProfile ? 5 : 3, UseUnifiedLargeEffectProfile ? 13 : 9);
                 break;
         }
 
@@ -151,17 +162,30 @@ public sealed class ReactionOverlay : Control
     }
 
 
-    private static bool IsDesktopPlatform =>
-        OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS();
+    private static int EffectParticleCount(int desktopCount, int mobileCount)
+    {
+        _ = mobileCount;
+        return desktopCount;
+    }
 
-    private static int EffectParticleCount(int desktopCount, int mobileCount) =>
-        IsDesktopPlatform ? desktopCount : mobileCount;
-
+    // Particle coordinates are normalized and therefore do not use Unit. Scale their pixel sizes
+    // explicitly by 1.5 on top of the former desktop profile.
     private static double ParticleSize(double size) =>
-        IsDesktopPlatform ? size * 1.24 : size;
+        size * DesktopParticleScale * UnifiedEffectScale;
 
+    // Most non-particle emoji receive a Unit-based size, and Unit already contains the new 1.5x
+    // factor. Retain the former desktop emoji multiplier here so all platforms match desktop.
     private static double EmojiSize(double size) =>
-        IsDesktopPlatform ? size * 1.16 : size;
+        size * DesktopEmojiScale;
+
+    // Constant pixel-width strokes do not automatically grow with Unit. Increase geometric effect
+    // outlines on every platform so lasers, ripples, rain, meteors and similar lines remain visible
+    // over bright camera frames.
+    private static Pen EffectPen(IBrush brush, double thickness) =>
+        new(brush, Math.Max(thickness + 1.0, thickness * EffectStrokeScale));
+
+    private static Pen LaserPen(IBrush brush, double thickness) =>
+        new(brush, Math.Max(thickness + 2.0, thickness * LaserStrokeScale));
 
     private void CreateFloatingParticles(
         int count,
@@ -322,7 +346,7 @@ public sealed class ReactionOverlay : Control
     }
 
     private Point Anchor => new(Bounds.Width * _anchorX, Bounds.Height * _anchorY);
-    private double Unit => Math.Min(Bounds.Width, Bounds.Height);
+    private double Unit => Math.Min(Bounds.Width, Bounds.Height) * UnifiedEffectScale;
 
     private void DrawGrabMagnet(DrawingContext context, double t)
     {
@@ -334,7 +358,7 @@ public sealed class ReactionOverlay : Control
             {
                 var progress = (t * 0.85 + ring * 0.24) % 1.0;
                 var radius = Unit * (0.30 * (1 - progress) + 0.03);
-                context.DrawEllipse(null, new Pen(AccentBrushes[(ring + 2) % 6], 3), a, radius, radius);
+                context.DrawEllipse(null, EffectPen(AccentBrushes[(ring + 2) % 6], 3), a, radius, radius);
             }
 
             foreach (var p in _particles)
@@ -359,7 +383,7 @@ public sealed class ReactionOverlay : Control
                 var progress = Math.Clamp((t - i * 0.16) / 0.9, 0, 1);
                 var rx = Unit * (0.06 + 0.22 * progress);
                 var ry = rx * (0.62 + 0.24 * Math.Sin(t * 7));
-                context.DrawEllipse(null, new Pen(B("#7064D2FF"), 4 - i), a, rx, ry);
+                context.DrawEllipse(null, EffectPen(B("#7064D2FF"), 4 - i), a, rx, ry);
             }
             DrawEmoji(context, "✊", a, Unit * 0.19 * (1 - 0.08 * Math.Sin(t * 10)));
         }
@@ -371,8 +395,8 @@ public sealed class ReactionOverlay : Control
         using (context.PushOpacity(Fade(t, 3.0)))
         {
             var halo = new Point(a.X, a.Y - Unit * 0.17);
-            context.DrawEllipse(null, new Pen(B("#FFFFD86B"), 7), halo, Unit * 0.16, Unit * 0.045);
-            context.DrawEllipse(null, new Pen(B("#80FFF3B0"), 15), halo, Unit * 0.17, Unit * 0.055);
+            context.DrawEllipse(null, EffectPen(B("#FFFFD86B"), 7), halo, Unit * 0.16, Unit * 0.045);
+            context.DrawEllipse(null, EffectPen(B("#80FFF3B0"), 15), halo, Unit * 0.17, Unit * 0.055);
             DrawRadialBurst(context, a, Unit * 0.10, Unit * (0.20 + 0.03 * Math.Sin(t * 5)), 16, B("#FFFFE69A"), 3);
             for (var i = 0; i < 12; i++)
             {
@@ -392,12 +416,12 @@ public sealed class ReactionOverlay : Control
         var end = new Point(a.X + direction * Unit * 0.38 * progress, a.Y - Unit * 0.10 * progress);
         using (context.PushOpacity(Fade(t, 2.3)))
         {
-            context.DrawLine(new Pen(B("#FF64D2FF"), 9), a, end);
-            context.DrawLine(new Pen(B("#8064D2FF"), 18), a, end);
+            context.DrawLine(EffectPen(B("#FF64D2FF"), 9), a, end);
+            context.DrawLine(EffectPen(B("#8064D2FF"), 18), a, end);
             var head = Unit * 0.045;
-            context.DrawLine(new Pen(B("#FFFFFFFF"), 6), end,
+            context.DrawLine(EffectPen(B("#FFFFFFFF"), 6), end,
                 new Point(end.X - direction * head, end.Y - head));
-            context.DrawLine(new Pen(B("#FFFFFFFF"), 6), end,
+            context.DrawLine(EffectPen(B("#FFFFFFFF"), 6), end,
                 new Point(end.X - direction * head, end.Y + head));
             DrawEmoji(context, "👉", a, Unit * 0.16 * PopScale(t));
         }
@@ -416,7 +440,7 @@ public sealed class ReactionOverlay : Control
                     var p = Math.Clamp((t - i * 0.16) / 0.8, 0, 1);
                     var x = a.X + side * Unit * (0.12 + p * 0.18);
                     var length = Unit * (0.06 + p * 0.10);
-                    context.DrawLine(new Pen(B("#FF30D158"), 4),
+                    context.DrawLine(EffectPen(B("#FF30D158"), 4),
                         new Point(x, a.Y - length), new Point(x, a.Y + length));
                 }
             }
@@ -447,11 +471,11 @@ public sealed class ReactionOverlay : Control
             var radius = Unit * 0.20;
             DrawArc(context, a, radius, -Math.PI / 2, -Math.PI / 2 + Math.Min(t / 1.4, 1) * Math.PI * 2,
                 B("#FFFF9F0A"), 8, 48);
-            context.DrawEllipse(B("#5A11131B"), new Pen(B("#90FFFFFF"), 2), a, radius * 0.75, radius * 0.75);
+            context.DrawEllipse(B("#5A11131B"), EffectPen(B("#90FFFFFF"), 2), a, radius * 0.75, radius * 0.75);
             DrawLabel(context, "TIME", a, Unit * 0.065, B("#FFFFFFFF"));
             var hand = new Point(a.X + Math.Cos(t * 4 - Math.PI / 2) * radius * 0.55,
                 a.Y + Math.Sin(t * 4 - Math.PI / 2) * radius * 0.55);
-            context.DrawLine(new Pen(B("#FFFFFFFF"), 4), a, hand);
+            context.DrawLine(EffectPen(B("#FFFFFFFF"), 4), a, hand);
         }
     }
 
@@ -462,10 +486,10 @@ public sealed class ReactionOverlay : Control
         var r = Unit * 0.24 * p;
         using (context.PushOpacity(Fade(t, 2.4)))
         {
-            context.DrawLine(new Pen(B("#80FF453A"), 18), new Point(a.X - r, a.Y - r), new Point(a.X + r, a.Y + r));
-            context.DrawLine(new Pen(B("#FFFF453A"), 7), new Point(a.X - r, a.Y - r), new Point(a.X + r, a.Y + r));
-            context.DrawLine(new Pen(B("#80FF453A"), 18), new Point(a.X + r, a.Y - r), new Point(a.X - r, a.Y + r));
-            context.DrawLine(new Pen(B("#FFFF453A"), 7), new Point(a.X + r, a.Y - r), new Point(a.X - r, a.Y + r));
+            context.DrawLine(EffectPen(B("#80FF453A"), 18), new Point(a.X - r, a.Y - r), new Point(a.X + r, a.Y + r));
+            context.DrawLine(EffectPen(B("#FFFF453A"), 7), new Point(a.X - r, a.Y - r), new Point(a.X + r, a.Y + r));
+            context.DrawLine(EffectPen(B("#80FF453A"), 18), new Point(a.X + r, a.Y - r), new Point(a.X - r, a.Y + r));
+            context.DrawLine(EffectPen(B("#FFFF453A"), 7), new Point(a.X + r, a.Y - r), new Point(a.X - r, a.Y + r));
         }
     }
 
@@ -483,7 +507,7 @@ public sealed class ReactionOverlay : Control
 
             var pulse = 1 + Math.Sin(t * (doublePulse ? 10 : 6)) * (doublePulse ? 0.11 : 0.07);
 
-            if (IsDesktopPlatform)
+            if (UseUnifiedLargeEffectProfile)
             {
                 var ringRadius = Unit * (0.21 + Math.Sin(t * 3.2) * 0.018);
                 for (var i = 0; i < 8; i++)
@@ -493,13 +517,13 @@ public sealed class ReactionOverlay : Control
                         a.Y + Math.Sin(angle) * ringRadius * 0.72);
                     DrawEmoji(context, i % 2 == 0 ? "💕" : "✨", heart, Unit * 0.052);
                 }
-                context.DrawEllipse(null, new Pen(B("#50FF73B9"), 14), a,
+                context.DrawEllipse(null, EffectPen(B("#50FF73B9"), 14), a,
                     Unit * 0.28 * pulse, Unit * 0.23 * pulse);
             }
 
             if (doublePulse)
             {
-                context.DrawEllipse(null, new Pen(B("#80FF2D55"), 8), a, Unit * 0.24 * pulse, Unit * 0.20 * pulse);
+                context.DrawEllipse(null, EffectPen(B("#80FF2D55"), 8), a, Unit * 0.24 * pulse, Unit * 0.20 * pulse);
                 DrawEmoji(context, "💖", a, Unit * 0.24 * pulse);
             }
             else
@@ -540,7 +564,7 @@ public sealed class ReactionOverlay : Control
                         start.X + i * Unit * 0.058,
                         start.Y + Math.Sin(i * 2.1 + t * 12 + arc) * Unit * 0.04));
                 }
-                DrawPolyline(context, points, new Pen(arc % 2 == 0 ? B("#FFBF5AF2") : B("#FF64D2FF"), 4));
+                DrawPolyline(context, points, EffectPen(arc % 2 == 0 ? B("#FFBF5AF2") : B("#FF64D2FF"), 4));
             }
             DrawEmoji(context, "⚡", a, Unit * 0.15 * PopScale(t));
         }
@@ -590,7 +614,7 @@ public sealed class ReactionOverlay : Control
             {
                 var p = Math.Clamp((t - i * 0.10) / 0.8, 0, 1);
                 var r = Unit * (0.05 + 0.28 * EaseOutCubic(p));
-                context.DrawEllipse(null, new Pen(AccentBrushes[(i + 4) % 6], 7 - i), a, r, r);
+                context.DrawEllipse(null, EffectPen(AccentBrushes[(i + 4) % 6], 7 - i), a, r, r);
             }
             DrawRadialBurst(context, a, Unit * 0.12, Unit * 0.34, 18, B("#FFFF9F0A"), 5);
             DrawLabel(context, "BAM!", new Point(a.X, a.Y - Unit * 0.04), Unit * 0.10, B("#FFFFFFFF"));
@@ -624,9 +648,9 @@ public sealed class ReactionOverlay : Control
             {
                 var x = a.X + Unit * (0.12 + i * 0.06);
                 var h = Unit * (0.05 + i * 0.025) * Math.Max(0, 1 - t / 1.2);
-                context.DrawLine(new Pen(B("#FF64D2FF"), 4), new Point(x, a.Y - h), new Point(x, a.Y + h));
+                context.DrawLine(EffectPen(B("#FF64D2FF"), 4), new Point(x, a.Y - h), new Point(x, a.Y + h));
             }
-            context.DrawLine(new Pen(B("#FFFF453A"), 9),
+            context.DrawLine(EffectPen(B("#FFFF453A"), 9),
                 new Point(a.X - Unit * 0.17, a.Y - Unit * 0.17),
                 new Point(a.X + Unit * 0.17, a.Y + Unit * 0.17));
         }
@@ -639,7 +663,7 @@ public sealed class ReactionOverlay : Control
         {
             var p = EaseOutBack(Math.Clamp(t / 0.45, 0, 1));
             var r = Unit * 0.20 * p;
-            context.DrawEllipse(B("#3030D158"), new Pen(B("#FF30D158"), 8), a, r, r);
+            context.DrawEllipse(B("#3030D158"), EffectPen(B("#FF30D158"), 8), a, r, r);
             DrawLabel(context, "✓", a, Unit * 0.18 * p, B("#FFFFFFFF"));
             DrawRadialBurst(context, a, r * 1.05, r * 1.35, 12, B("#FF30D158"), 3);
         }
@@ -654,7 +678,7 @@ public sealed class ReactionOverlay : Control
             for (var i = -5; i <= 5; i++)
             {
                 var end = new Point(a.X + i * Unit * 0.035, a.Y + Unit * 0.22);
-                context.DrawLine(new Pen(B("#18FFFFFF"), 18), top, end);
+                context.DrawLine(EffectPen(B("#18FFFFFF"), 18), top, end);
             }
             context.DrawEllipse(B("#50FFD60A"), null, new Point(a.X, a.Y + Unit * 0.12), Unit * 0.24, Unit * 0.07);
             DrawLabel(context, "1", a, Unit * 0.22 * PopScale(t), B("#FFFFFFFF"));
@@ -671,9 +695,9 @@ public sealed class ReactionOverlay : Control
                 var p = Math.Clamp((t - i * 0.12) / 0.7, 0, 1);
                 var r = Unit * (0.08 + 0.20 * EaseOutCubic(p));
                 context.DrawEllipse(B(i == 0 ? "#1830D1FF" : "#0864D2FF"),
-                    new Pen(i % 2 == 0 ? B("#FF64D2FF") : B("#FF30D158"), 4), a, r, r);
+                    EffectPen(i % 2 == 0 ? B("#FF64D2FF") : B("#FF30D158"), 4), a, r, r);
             }
-            DrawPolygon(context, a, Unit * 0.20, 6, t * 0.22, null, new Pen(B("#FFFFFFFF"), 3));
+            DrawPolygon(context, a, Unit * 0.20, 6, t * 0.22, null, EffectPen(B("#FFFFFFFF"), 3));
             DrawEmoji(context, "✋", a, Unit * 0.18 * PopScale(t));
         }
     }
@@ -689,7 +713,7 @@ public sealed class ReactionOverlay : Control
                 var center = new Point(x, y);
                 DrawEmoji(context, "🎈", center, p.Size);
 
-                if (IsDesktopPlatform && ((int)(p.Phase * 10) & 1) == 0)
+                if (UseUnifiedLargeEffectProfile && ((int)(p.Phase * 10) & 1) == 0)
                 {
                     var sparkle = new Point(x + Math.Sin(t * 5 + p.Phase) * p.Size * 0.55,
                         y - p.Size * 0.62);
@@ -698,7 +722,7 @@ public sealed class ReactionOverlay : Control
                 }
             }
 
-            if (IsDesktopPlatform)
+            if (UseUnifiedLargeEffectProfile)
             {
                 var shimmer = 0.84 + Math.Sin(t * 7) * 0.16;
                 DrawRadialBurst(context, Anchor, Unit * 0.12, Unit * 0.30, 18, B("#BFFFFFFF"), 3);
@@ -725,7 +749,7 @@ public sealed class ReactionOverlay : Control
                     new Rect(x, y, width, p.Size * 0.55), 2, 2);
             }
 
-            if (IsDesktopPlatform)
+            if (UseUnifiedLargeEffectProfile)
             {
                 var glow = Math.Clamp(1 - t / 1.8, 0, 1);
                 using (context.PushOpacity(glow))
@@ -738,14 +762,14 @@ public sealed class ReactionOverlay : Control
 
             if (sideCannons)
             {
-                var cannonSize = Unit * (IsDesktopPlatform ? 0.21 : 0.14);
+                var cannonSize = Unit * (UseUnifiedLargeEffectProfile ? 0.21 : 0.14);
                 DrawEmoji(context, "🎊", new Point(Bounds.Width * 0.14, Bounds.Height * 0.74), cannonSize);
                 DrawEmoji(context, "🎊", new Point(Bounds.Width * 0.86, Bounds.Height * 0.74), cannonSize);
             }
             else
             {
                 DrawEmoji(context, "🎉", new Point(Bounds.Width / 2, Bounds.Height * 0.25),
-                    Unit * (IsDesktopPlatform ? 0.23 : 0.17));
+                    Unit * (UseUnifiedLargeEffectProfile ? 0.23 : 0.17));
             }
         }
     }
@@ -755,15 +779,35 @@ public sealed class ReactionOverlay : Control
         var center = fullScreen ? new Point(Bounds.Width / 2, Bounds.Height / 2) : Anchor;
         using (context.PushOpacity(Fade(t, fullScreen ? 2.8 : 2.6)))
         {
-            context.DrawRectangle(B("#20100020"), null, new Rect(0, 0, Bounds.Width, Bounds.Height));
+            context.DrawRectangle(B(fullScreen ? "#2810182A" : "#16101820"), null, new Rect(0, 0, Bounds.Width, Bounds.Height));
             var count = fullScreen ? 18 : 10;
             for (var i = 0; i < count; i++)
             {
                 var angle = i * Math.PI * 2 / count + Math.Sin(t * 3 + i) * 0.10;
                 var length = Unit * (0.28 + 0.18 * Math.Sin(t * 8 + i));
                 var endpoint = new Point(center.X + Math.Cos(angle) * length, center.Y + Math.Sin(angle) * length);
-                context.DrawLine(new Pen(AccentBrushes[i % AccentBrushes.Length], i % 3 == 0 ? 7 : 3), center, endpoint);
+                var brush = AccentBrushes[i % AccentBrushes.Length];
+                var thickness = i % 3 == 0 ? 7.0 : 3.0;
+                var glowScale = 1.0 + 0.10 * Math.Sin(t * 12 + i * 0.7);
+
+                DrawBeamWithGlow(context, center, endpoint, brush, thickness * glowScale);
+
+                if (fullScreen)
+                {
+                    var sparkRadius = Unit * (0.014 + 0.010 * Math.Sin(t * 6 + i));
+                    context.DrawEllipse(B("#30FFFFFF"), null, endpoint, sparkRadius * 3.0, sparkRadius * 3.0);
+                    context.DrawEllipse(B("#B0FFFFFF"), null, endpoint, sparkRadius, sparkRadius);
+
+                    var back = new Point(
+                        endpoint.X - Math.Cos(angle) * Unit * 0.020,
+                        endpoint.Y - Math.Sin(angle) * Unit * 0.020);
+                    DrawRadialBurst(context, endpoint, sparkRadius * 0.8, sparkRadius * 2.6, 6, brush, 1.8);
+                    context.DrawLine(EffectPen(B("#60FFFFFF"), 1.4), back, endpoint);
+                }
             }
+
+            context.DrawEllipse(B("#18FFFFFF"), null, center, Unit * 0.06, Unit * 0.06);
+            context.DrawEllipse(B("#66FFFFFF"), null, center, Unit * 0.018, Unit * 0.018);
             DrawEmoji(context, "🤘", center, Unit * 0.18 * PopScale(t));
         }
     }
@@ -775,7 +819,7 @@ public sealed class ReactionOverlay : Control
         using (context.PushOpacity(Fade(t, 2.6)))
         {
             DrawPolygon(context, a, Unit * 0.22 * scale, 8, Math.PI / 8,
-                B("#D9FF3B30"), new Pen(B("#FFFFFFFF"), 6));
+                B("#D9FF3B30"), EffectPen(B("#FFFFFFFF"), 6));
             DrawLabel(context, "STOP", a, Unit * 0.085 * scale, B("#FFFFFFFF"));
             DrawRadialBurst(context, a, Unit * 0.24, Unit * 0.34, 12, B("#FFFF453A"), 4);
         }
@@ -790,7 +834,7 @@ public sealed class ReactionOverlay : Control
             {
                 var p = (t * 0.75 + i * 0.22) % 1;
                 var r = Unit * (0.28 * (1 - p) + 0.05);
-                context.DrawEllipse(null, new Pen(i % 2 == 0 ? B("#FFFF453A") : B("#FFFF9F0A"), 5), a, r, r);
+                context.DrawEllipse(null, EffectPen(i % 2 == 0 ? B("#FFFF453A") : B("#FFFF9F0A"), 5), a, r, r);
             }
             DrawEmoji(context, "⚠️", a, Unit * 0.17 * PopScale(t));
         }
@@ -804,7 +848,7 @@ public sealed class ReactionOverlay : Control
             {
                 var x = (p.X + p.Vx * t + Math.Sin(t * 2 + p.Phase) * 0.018) * Bounds.Width;
                 var y = (p.Y + p.Vy * t) * Bounds.Height;
-                context.DrawEllipse(B("#2864D2FF"), new Pen(B("#BFFFFFFF"), 2), new Point(x, y), p.Size / 2, p.Size / 2);
+                context.DrawEllipse(B("#2864D2FF"), EffectPen(B("#BFFFFFFF"), 2), new Point(x, y), p.Size / 2, p.Size / 2);
             }
             DrawLabel(context, "3", Anchor, Unit * 0.14, B("#FFFFFFFF"));
         }
@@ -820,7 +864,7 @@ public sealed class ReactionOverlay : Control
                 var p = Math.Clamp((t - i * 0.22) / 1.0, 0, 1);
                 var r = Unit * (0.04 + 0.25 * EaseOutCubic(p));
                 using (context.PushOpacity(1 - p * 0.75))
-                    context.DrawEllipse(null, new Pen(AccentBrushes[(i + 2) % 6], 7 - i), a, r, r);
+                    context.DrawEllipse(null, EffectPen(AccentBrushes[(i + 2) % 6], 7 - i), a, r, r);
             }
             DrawLabel(context, "III", a, Unit * 0.10, B("#FFFFFFFF"));
         }
@@ -835,10 +879,10 @@ public sealed class ReactionOverlay : Control
             {
                 var x = a.X + side * Unit * 0.10;
                 var top = a.Y - Unit * (0.20 + 0.18 * EaseOutCubic(Math.Clamp(t / 0.7, 0, 1)));
-                context.DrawLine(new Pen(B("#4064D2FF"), 26), new Point(x, a.Y + Unit * 0.16), new Point(x, top));
-                context.DrawLine(new Pen(B("#FFFFFFFF"), 5), new Point(x, a.Y + Unit * 0.16), new Point(x, top));
-                context.DrawLine(new Pen(B("#FFFFFFFF"), 5), new Point(x, top), new Point(x - Unit * 0.035, top + Unit * 0.045));
-                context.DrawLine(new Pen(B("#FFFFFFFF"), 5), new Point(x, top), new Point(x + Unit * 0.035, top + Unit * 0.045));
+                context.DrawLine(EffectPen(B("#4064D2FF"), 26), new Point(x, a.Y + Unit * 0.16), new Point(x, top));
+                context.DrawLine(EffectPen(B("#FFFFFFFF"), 5), new Point(x, a.Y + Unit * 0.16), new Point(x, top));
+                context.DrawLine(EffectPen(B("#FFFFFFFF"), 5), new Point(x, top), new Point(x - Unit * 0.035, top + Unit * 0.045));
+                context.DrawLine(EffectPen(B("#FFFFFFFF"), 5), new Point(x, top), new Point(x + Unit * 0.035, top + Unit * 0.045));
             }
             DrawEmoji(context, "✌️", a, Unit * 0.15 * PopScale(t));
         }
@@ -852,9 +896,11 @@ public sealed class ReactionOverlay : Control
             {
                 var x = (p.X + p.Vx * t) * Bounds.Width;
                 var y = (p.Y + p.Vy * t) * Bounds.Height;
+                var head = new Point(x, y);
                 var tail = new Point(x + p.Size * 2.5, y - p.Size * 3.5);
-                context.DrawLine(new Pen(AccentBrushes[p.BrushIndex], 3), tail, new Point(x, y));
-                context.DrawEllipse(B("#FFFFFFFF"), null, new Point(x, y), p.Size / 3, p.Size / 3);
+                DrawBeamWithGlow(context, tail, head, AccentBrushes[p.BrushIndex], 2.4);
+                context.DrawEllipse(B("#35FFFFFF"), null, head, p.Size * 0.70, p.Size * 0.70);
+                context.DrawEllipse(B("#FFFFFFFF"), null, head, p.Size / 3, p.Size / 3);
             }
             DrawEmoji(context, "☄️", Anchor, Unit * 0.14 * PopScale(t));
         }
@@ -868,8 +914,8 @@ public sealed class ReactionOverlay : Control
         var projectile = new Point(a.X + direction * Unit * 0.48 * p, a.Y - Unit * 0.06 * p);
         using (context.PushOpacity(Fade(t, 2.4)))
         {
-            context.DrawLine(new Pen(B("#505E5CE6"), 20), a, projectile);
-            context.DrawLine(new Pen(B("#FFFFFFFF"), 5), a, projectile);
+            context.DrawLine(EffectPen(B("#505E5CE6"), 20), a, projectile);
+            context.DrawLine(EffectPen(B("#FFFFFFFF"), 5), a, projectile);
             context.DrawEllipse(B("#FFFFD60A"), null, projectile, Unit * 0.025, Unit * 0.025);
             DrawLabel(context, "PEW!", new Point(projectile.X, projectile.Y - Unit * 0.08), Unit * 0.065, B("#FFFFFFFF"));
             DrawEmoji(context, "👉", a, Unit * 0.14 * PopScale(t));
@@ -886,7 +932,7 @@ public sealed class ReactionOverlay : Control
                 var phase = t * (1.5 + i * 0.1) + i * 0.6;
                 var rx = Unit * (0.18 + i * 0.018 + Math.Sin(phase) * 0.012);
                 var ry = Unit * (0.27 + i * 0.014);
-                context.DrawEllipse(null, new Pen(AccentBrushes[(i + 2) % 6], 5), a, rx, ry);
+                context.DrawEllipse(null, EffectPen(AccentBrushes[(i + 2) % 6], 5), a, rx, ry);
             }
             foreach (var p in _particles)
             {
@@ -905,16 +951,34 @@ public sealed class ReactionOverlay : Control
         using (context.PushOpacity(Fade(t, 3.0)))
         {
             context.DrawRectangle(B("#35151C28"), null, new Rect(0, 0, Bounds.Width, Bounds.Height));
+            context.DrawRectangle(B("#10000000"), null, new Rect(0, Bounds.Height * 0.72, Bounds.Width, Bounds.Height * 0.28));
             DrawEmoji(context, "🌧️", new Point(Bounds.Width / 2, Bounds.Height * 0.20), Unit * 0.15);
-            var pen = new Pen(B("#78B8F8FF"), 3);
+
             foreach (var p in _particles)
             {
                 var yNormalized = (p.Y + p.Vy * t) % 1.25;
                 if (yNormalized < 0)
                     yNormalized += 1.25;
+
                 var x = (p.X + p.Vx * t) * Bounds.Width;
                 var y = yNormalized * Bounds.Height;
-                context.DrawLine(pen, new Point(x, y), new Point(x - p.Size * 0.35, y + p.Size));
+                var head = new Point(x, y);
+                var tail = new Point(x - p.Size * 0.28, y + p.Size * 1.05);
+                var streakWidth = Math.Max(1.6, p.Size * 0.10);
+
+                using (context.PushOpacity(0.16))
+                    context.DrawLine(EffectPen(B("#78D6FFFF"), streakWidth * 2.4), head, tail);
+                context.DrawLine(EffectPen(B("#8AD8FFFF"), streakWidth), head, tail);
+                context.DrawLine(EffectPen(B("#E8FFFFFF"), Math.Max(0.9, streakWidth * 0.38)), head, tail);
+                context.DrawEllipse(B("#70E6FFFF"), null, head, streakWidth * 0.95, streakWidth * 1.2);
+                context.DrawEllipse(B("#F8FFFFFF"), null, new Point(head.X - streakWidth * 0.16, head.Y + streakWidth * 0.12),
+                    streakWidth * 0.24, streakWidth * 0.34);
+
+                if (y > Bounds.Height * 0.78 && (((int)(p.Phase * 9) + (int)(t * 14)) % 5 == 0))
+                {
+                    var splashCenter = new Point(x - p.Size * 0.14, Math.Min(Bounds.Height - 4, y + p.Size * 0.24));
+                    DrawRainSplash(context, splashCenter, p.Size * 0.20);
+                }
             }
         }
     }
@@ -928,14 +992,14 @@ public sealed class ReactionOverlay : Control
             DrawFireworkBurst(context, new Point(Bounds.Width * 0.72, Bounds.Height * 0.28), t, 0.34, 2);
             DrawFireworkBurst(context, new Point(Bounds.Width * 0.52, Bounds.Height * 0.58), t, 0.72, 4);
 
-            if (IsDesktopPlatform)
+            if (UseUnifiedLargeEffectProfile)
             {
                 DrawFireworkBurst(context, new Point(Bounds.Width * 0.12, Bounds.Height * 0.54), t, 0.52, 1);
                 DrawFireworkBurst(context, new Point(Bounds.Width * 0.88, Bounds.Height * 0.52), t, 0.90, 5);
                 DrawEmoji(context, "🎆", new Point(Bounds.Width * 0.50, Bounds.Height * 0.18), Unit * 0.18);
             }
 
-            var thumbSize = Unit * (IsDesktopPlatform ? 0.18 : 0.13);
+            var thumbSize = Unit * (UseUnifiedLargeEffectProfile ? 0.18 : 0.13);
             DrawEmoji(context, "👍🏻", new Point(Bounds.Width * 0.40, Bounds.Height * 0.77), thumbSize);
             DrawEmoji(context, "👍🏻", new Point(Bounds.Width * 0.60, Bounds.Height * 0.77), thumbSize);
         }
@@ -955,11 +1019,26 @@ public sealed class ReactionOverlay : Control
             for (var i = 0; i < 22; i++)
             {
                 var angle = i * Math.PI * 2 / 22;
-                var start = new Point(center.X + Math.Cos(angle) * radius * 0.60,
-                    center.Y + Math.Sin(angle) * radius * 0.60);
+                var start = new Point(center.X + Math.Cos(angle) * radius * 0.52,
+                    center.Y + Math.Sin(angle) * radius * 0.52);
                 var end = new Point(center.X + Math.Cos(angle) * radius,
                     center.Y + Math.Sin(angle) * radius);
-                context.DrawLine(new Pen(AccentBrushes[(i + brushOffset) % AccentBrushes.Length], 3), start, end);
+                var brush = AccentBrushes[(i + brushOffset) % AccentBrushes.Length];
+                DrawBeamWithGlow(context, start, end, brush, 2.0);
+                context.DrawEllipse(B("#E8FFFFFF"), null, end, Unit * 0.006, Unit * 0.006);
+            }
+
+            if (progress > 0.18)
+            {
+                for (var i = 0; i < 12; i++)
+                {
+                    var angle = i * Math.PI * 2 / 12 + delay;
+                    var sparkRadius = radius * (0.35 + progress * 0.55);
+                    var spark = new Point(center.X + Math.Cos(angle) * sparkRadius,
+                        center.Y + Math.Sin(angle) * sparkRadius);
+                    context.DrawEllipse(AccentBrushes[(i + brushOffset + 2) % AccentBrushes.Length], null,
+                        spark, Unit * 0.0065, Unit * 0.0065);
+                }
             }
         }
     }
@@ -970,10 +1049,36 @@ public sealed class ReactionOverlay : Control
         for (var i = 0; i < count; i++)
         {
             var angle = i * Math.PI * 2 / count;
-            context.DrawLine(new Pen(brush, thickness),
+            context.DrawLine(EffectPen(brush, thickness),
                 new Point(center.X + Math.Cos(angle) * inner, center.Y + Math.Sin(angle) * inner),
                 new Point(center.X + Math.Cos(angle) * outer, center.Y + Math.Sin(angle) * outer));
         }
+    }
+
+    private static void DrawBeamWithGlow(DrawingContext context, Point start, Point end, IBrush brush, double thickness)
+    {
+        using (context.PushOpacity(0.18))
+            context.DrawLine(LaserPen(brush, thickness * 2.8), start, end);
+        using (context.PushOpacity(0.34))
+            context.DrawLine(LaserPen(brush, thickness * 1.65), start, end);
+        context.DrawLine(LaserPen(brush, thickness), start, end);
+        context.DrawLine(EffectPen(B("#F8FFFFFF"), Math.Max(0.85, thickness * 0.24)), start, end);
+    }
+
+    private static void DrawRainSplash(DrawingContext context, Point center, double size)
+    {
+        DrawArc(context,
+            center,
+            size,
+            Math.PI * 0.08,
+            Math.PI * 0.92,
+            B("#C8E9FFFF"),
+            Math.Max(0.8, size * 0.18),
+            10);
+        context.DrawEllipse(B("#58E3FFFF"), null, new Point(center.X - size * 0.20, center.Y - size * 0.06),
+            size * 0.16, size * 0.10);
+        context.DrawEllipse(B("#58E3FFFF"), null, new Point(center.X + size * 0.22, center.Y - size * 0.04),
+            size * 0.14, size * 0.10);
     }
 
     private static void DrawArc(DrawingContext context, Point center, double radius,
@@ -985,7 +1090,7 @@ public sealed class ReactionOverlay : Control
             var angle = Lerp(startAngle, endAngle, i / (double)segments);
             points.Add(new Point(center.X + Math.Cos(angle) * radius, center.Y + Math.Sin(angle) * radius));
         }
-        DrawPolyline(context, points, new Pen(brush, thickness));
+        DrawPolyline(context, points, EffectPen(brush, thickness));
     }
 
     private static void DrawPolyline(DrawingContext context, IReadOnlyList<Point> points, Pen pen)
@@ -1036,7 +1141,7 @@ public sealed class ReactionOverlay : Control
 
     private static void DrawFocusCorners(DrawingContext context, Rect rect, IBrush brush, double thickness)
     {
-        var pen = new Pen(brush, thickness);
+        var pen = EffectPen(brush, thickness);
         var length = Math.Min(rect.Width, rect.Height) * 0.22;
         context.DrawLine(pen, rect.TopLeft, new Point(rect.Left + length, rect.Top));
         context.DrawLine(pen, rect.TopLeft, new Point(rect.Left, rect.Top + length));

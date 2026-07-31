@@ -11,6 +11,7 @@ internal static class Program
     {
         AppServices.PlatformKind = AppPlatformKind.Desktop;
         AppServices.CameraFactory = static () => new DesktopCameraService();
+        AppServices.ToggleFullscreenAsync = null;
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 

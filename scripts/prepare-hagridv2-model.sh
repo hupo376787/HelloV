@@ -5,13 +5,11 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TOOLS="$ROOT/.model-tools"
 VENV="$TOOLS/venv"
 CHECKPOINT="$TOOLS/YOLOv10n_gestures.pt"
-MODEL_DIR="$ROOT/src/HelloV.Desktop/Models"
+MODEL_DIR="$ROOT/Models"
 OUTPUT="$MODEL_DIR/YOLOv10n_gestures.onnx"
-ANDROID_MODEL_DIR="$ROOT/src/HelloV.Android/Assets"
-ANDROID_OUTPUT="$ANDROID_MODEL_DIR/YOLOv10n_gestures.onnx"
 URL="https://rndml-team-cv.obs.ru-moscow-1.hc.sbercloud.ru/datasets/hagrid_v2/models/YOLOv10n_gestures.pt"
 
-mkdir -p "$TOOLS" "$MODEL_DIR" "$ANDROID_MODEL_DIR"
+mkdir -p "$TOOLS" "$MODEL_DIR"
 if [[ ! -f "$CHECKPOINT" ]]; then
   echo "正在下载 HaGRIDv2 官方 YOLOv10n 手势模型…"
   curl -fL "$URL" -o "$CHECKPOINT"
@@ -28,7 +26,4 @@ fi
   --output "$OUTPUT" \
   --imgsz 640
 
-cp -f "$OUTPUT" "$ANDROID_OUTPUT"
-
-echo "桌面模型：$OUTPUT"
-echo "Android Assets 模型：$ANDROID_OUTPUT"
+echo "Desktop / Android / iOS 共用模型：$OUTPUT"

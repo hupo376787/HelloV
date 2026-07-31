@@ -9,11 +9,12 @@ using AndroidX.Core.Content;
 using AndroidX.Lifecycle;
 using HelloV.Models;
 using HelloV.Services;
-using Java.Util.Concurrent;
 using AndroidActivity = global::Android.App.Activity;
 using AndroidLog = global::Android.Util.Log;
 using AndroidSize = global::Android.Util.Size;
 using Stopwatch = System.Diagnostics.Stopwatch;
+using JavaExecutors = Java.Util.Concurrent.Executors;
+using JavaExecutorService = Java.Util.Concurrent.IExecutorService;
 
 namespace HelloV.Android;
 
@@ -33,7 +34,7 @@ public sealed class AndroidCameraService : ICameraService
 
     private readonly AndroidActivity _activity;
     private readonly CameraManager _cameraManager;
-    private readonly IExecutorService _analysisExecutor;
+    private readonly JavaExecutorService _analysisExecutor;
     private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
 
     private ProcessCameraProvider? _cameraProvider;
@@ -46,7 +47,8 @@ public sealed class AndroidCameraService : ICameraService
         _activity = activity ?? throw new ArgumentNullException(nameof(activity));
         _cameraManager = (CameraManager?)activity.GetSystemService(Context.CameraService)
             ?? throw new InvalidOperationException("无法获取 Android 摄像头服务");
-        _analysisExecutor = Executors.NewSingleThreadExecutor();
+        _analysisExecutor = JavaExecutors.NewSingleThreadExecutor()
+            ?? throw new InvalidOperationException("无法创建 CameraX 图像分析线程");
     }
 
     public Task<IReadOnlyList<CameraDeviceInfo>> GetCamerasAsync(
@@ -126,9 +128,10 @@ public sealed class AndroidCameraService : ICameraService
                     var lensFacing = camera.Facing == CameraFacing.Front
                         ? CameraSelector.LensFacingFront
                         : CameraSelector.LensFacingBack;
-                    var selector = new CameraSelector.Builder()
-                        .RequireLensFacing(lensFacing)
-                        .Build();
+                    using var selectorBuilder = new CameraSelector.Builder();
+                    selectorBuilder.RequireLensFacing(lensFacing);
+                    using var selector = selectorBuilder.Build()
+                        ?? throw new InvalidOperationException("CameraX 无法创建摄像头选择器");
 
                     // Bind only one RGBA ImageAnalysis use case. With no competing Preview or
                     // ImageCapture use case, CameraX can honor the requested 1080p analysis size
@@ -164,18 +167,20 @@ public sealed class AndroidCameraService : ICameraService
         // ImageAnalysis preference of 640x480 and explicitly requests Full HD. CameraX may choose
         // the closest supported 16:9 size if the exact stream is unavailable.
 #pragma warning disable CS0618
-        return new ImageAnalysis.Builder()
-            .SetTargetResolution(new AndroidSize(TargetWidth, TargetHeight))
-            .SetBackpressureStrategy(ImageAnalysis.StrategyKeepOnlyLatest)
-            .SetOutputImageFormat(ImageAnalysis.OutputImageFormatRgba8888)
-            .Build();
+        using var builder = new ImageAnalysis.Builder();
+        builder.SetTargetResolution(new AndroidSize(TargetWidth, TargetHeight));
+        builder.SetBackpressureStrategy(ImageAnalysis.StrategyKeepOnlyLatest);
+        builder.SetOutputImageFormat(ImageAnalysis.OutputImageFormatRgba8888);
+        return builder.Build()
+            ?? throw new InvalidOperationException("CameraX 无法创建图像分析用例");
 #pragma warning restore CS0618
     }
 
     private async Task<ProcessCameraProvider> GetCameraProviderAsync(
         CancellationToken cancellationToken)
     {
-        var future = ProcessCameraProvider.GetInstance(_activity);
+        var future = ProcessCameraProvider.GetInstance(_activity)
+            ?? throw new InvalidOperationException("CameraX 无法创建摄像头提供程序任务");
         var completion = new TaskCompletionSource<ProcessCameraProvider>(
             TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -374,13 +379,16 @@ public sealed class AndroidCameraService : ICameraService
             {
                 await _idle.Task.WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
             }
-            catch (TimeoutException)
+            catch (System.TimeoutException)
             {
             }
         }
 
-        public void Analyze(IImageProxy image)
+        public void Analyze(IImageProxy? image)
         {
+            if (image is null)
+                return;
+
             Interlocked.Increment(ref _activeCallbacks);
             VideoFrame? frame = null;
             try

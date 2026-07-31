@@ -9,6 +9,7 @@ public static class Application
     {
         AppServices.PlatformKind = AppPlatformKind.Mobile;
         AppServices.CameraFactory = static () => new IosCameraService();
+        AppServices.GestureFactory = IosModelLoader.CreateRecognizer;
         UIApplication.Main(args, null, typeof(AppDelegate));
     }
 }

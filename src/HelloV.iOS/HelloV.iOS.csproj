@@ -16,8 +16,18 @@
     <ProjectReference Include="..\HelloV.Core\HelloV.Core.csproj" />
     <PackageReference Include="Avalonia.iOS" Version="12.1.0" />
   </ItemGroup>
+
   <ItemGroup>
     <ImageAsset Include="Assets.xcassets\AppIcon.appiconset\Contents.json" />
-  </ItemGroup>
 
+    <!-- Link the same repository-root model into the iOS application bundle root. -->
+    <BundleResource Include="$(HelloVModelsDirectory)/YOLOv10n_gestures.onnx"
+                    Link="YOLOv10n_gestures.onnx"
+                    LogicalName="YOLOv10n_gestures.onnx"
+                    Condition="Exists('$(HelloVModelsDirectory)/YOLOv10n_gestures.onnx')" />
+    <BundleResource Include="$(HelloVModelsDirectory)/YOLOv10x_gestures.onnx"
+                    Link="YOLOv10x_gestures.onnx"
+                    LogicalName="YOLOv10x_gestures.onnx"
+                    Condition="Exists('$(HelloVModelsDirectory)/YOLOv10x_gestures.onnx')" />
+  </ItemGroup>
 </Project>
