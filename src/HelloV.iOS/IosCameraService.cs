@@ -75,9 +75,12 @@ public sealed class IosCameraService : ICameraService
 
         _queue = new DispatchQueue("gesture-camera-ios");
         _delegate = new SampleBufferDelegate(onFrame);
-        _output.SetSampleBufferDelegateQueue(_delegate, _queue);
+        _output.SetSampleBufferDelegate(_delegate, _queue);
 
-        var connection = _output.ConnectionFromMediaType(AVMediaTypes.Video);
+        // AVCaptureVideoDataOutput has only the video connection configured above. Reading the
+        // generated Connections collection avoids passing the legacy AVMediaTypes smart enum to
+        // ConnectionFromMediaType, whose .NET 10 binding now requires an NSString.
+        var connection = _output.Connections.FirstOrDefault();
         if (connection is not null)
         {
             if (connection.SupportsVideoOrientation)
