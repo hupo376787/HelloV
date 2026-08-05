@@ -233,6 +233,25 @@
                     Background="#301A1E29"
                     BorderBrush="#26FFFFFF"
                     BorderThickness="1">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="{Binding Localization.InterruptModeTitle}"
+                             FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding Localization.InterruptModeDescription}"
+                             Opacity="0.68"
+                             TextWrapping="Wrap" />
+                </StackPanel>
+                <ToggleSwitch Grid.Column="1"
+                              VerticalAlignment="Center"
+                              IsChecked="{Binding IsInterruptModeEnabled, Mode=TwoWay}" />
+              </Grid>
+            </Border>
+
+            <Border Padding="12"
+                    CornerRadius="12"
+                    Background="#301A1E29"
+                    BorderBrush="#26FFFFFF"
+                    BorderThickness="1">
               <StackPanel Spacing="8">
                 <TextBlock Text="{Binding Localization.LanguageTitle}"
                            FontWeight="SemiBold" />

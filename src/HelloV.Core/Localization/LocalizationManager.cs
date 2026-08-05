@@ -71,6 +71,8 @@ public sealed class LocalizationManager : INotifyPropertyChanged
     public string SettingsSubtitle => Get("SettingsSubtitle");
     public string CameraDescription => Get("CameraDescription");
     public string FixMirror => Get("FixMirror");
+    public string InterruptModeTitle => Get("InterruptModeTitle");
+    public string InterruptModeDescription => Get("InterruptModeDescription");
     public string LanguageTitle => Get("LanguageTitle");
     public string LanguageDescription => Get("LanguageDescription");
     public string RescanLanguages => Get("RescanLanguages");

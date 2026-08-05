@@ -27,9 +27,14 @@ public sealed class GestureStabilizer
         _addExtraHitForCommonGestures = addExtraHitForCommonGestures;
     }
 
-    public ReactionDetection? Push(ReactionDetection? detection)
+    public ReactionKind LatchedKind => _latched;
+
+    public ReactionDetection? Push(ReactionDetection? detection, bool interruptMode = false)
     {
         var kind = detection?.Kind ?? ReactionKind.None;
+
+        if (interruptMode)
+            return PushInterruptible(detection, kind);
 
         if (_latched != ReactionKind.None)
         {
@@ -78,6 +83,79 @@ public sealed class GestureStabilizer
         _candidate = ReactionKind.None;
         _hits = 0;
         return detection;
+    }
+
+    private ReactionDetection? PushInterruptible(ReactionDetection? detection, ReactionKind kind)
+    {
+        // Interrupt mode keeps one-frame switching, but only for a strong and reasonably sized
+        // detection. Borderline detections must repeat once, preventing an isolated false positive
+        // from replacing the current effect while the scene contains no deliberate gesture.
+        if (kind == ReactionKind.None || detection is null)
+        {
+            _candidate = ReactionKind.None;
+            _hits = 0;
+            _candidateMisses = 0;
+
+            if (_latched != ReactionKind.None && ++_releaseMisses >= _requiredMissesToRelease)
+            {
+                _latched = ReactionKind.None;
+                _releaseMisses = 0;
+            }
+
+            return null;
+        }
+
+        _releaseMisses = 0;
+        _candidateMisses = 0;
+
+        if (kind == _latched)
+        {
+            _candidate = ReactionKind.None;
+            _hits = 0;
+            return null;
+        }
+
+        if (CanTriggerInterruptInOneFrame(detection))
+        {
+            _latched = kind;
+            _candidate = ReactionKind.None;
+            _hits = 0;
+            return detection;
+        }
+
+        if (kind != _candidate)
+        {
+            _candidate = kind;
+            _hits = 1;
+            return null;
+        }
+
+        if (++_hits < 2)
+            return null;
+
+        _latched = kind;
+        _candidate = ReactionKind.None;
+        _hits = 0;
+        return detection;
+    }
+
+    private static bool CanTriggerInterruptInOneFrame(ReactionDetection detection)
+    {
+        var minimumConfidence = detection.Kind switch
+        {
+            // Two-hand combinations are already selective because both hands must match.
+            ReactionKind.Fireworks or ReactionKind.Rain or ReactionKind.Confetti or
+                ReactionKind.Lasers or ReactionKind.HeartBurst or ReactionKind.HeartPulse => 0.58f,
+
+            // These common poses are the easiest to hallucinate from ordinary hand movement.
+            ReactionKind.ThumbsUp or ReactionKind.ThumbsDown or ReactionKind.Balloons or
+                ReactionKind.RibbonCannon or ReactionKind.RockPulse or ReactionKind.PointArrow or
+                ReactionKind.PalmShield => 0.66f,
+
+            _ => 0.62f
+        };
+
+        return detection.Confidence >= minimumConfidence && detection.Bounds.Area >= 0.008f;
     }
 
     private int RequiredHitsFor(ReactionKind kind) => kind switch

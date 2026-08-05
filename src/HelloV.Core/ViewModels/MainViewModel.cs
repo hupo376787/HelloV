@@ -40,6 +40,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
     private bool _initialized;
     private bool _flipPreviewHorizontally;
     private bool _isSettingsPanelVisible;
+    private bool _isInterruptModeEnabled;
     private int _inferenceBusy;
     private readonly SemaphoreSlim _cameraSwitchGate = new(1, 1);
     private int _previewDispatchPending;
@@ -66,17 +67,17 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
         IsMobile = !IsDesktop;
         SettingsPanelWidth = IsMobile ? 330d : 360d;
 
-        // Browser and mobile targets trigger on the first positive result because their ONNX passes
-        // are slower than desktop. Latching still prevents a held gesture from repeatedly firing;
-        // desktop keeps the stricter multi-frame filter for extra false-positive suppression.
+        // Normal mode keeps a short temporal confirmation on every platform. Interrupt mode is
+        // handled inside GestureStabilizer and can still switch in one frame when confidence and
+        // detection size are strong enough.
         _stabilizer = IsBrowser
             ? new GestureStabilizer(
-                requiredHits: 1,
+                requiredHits: 2,
                 requiredMissesToRelease: 2,
                 addExtraHitForCommonGestures: false)
             : IsMobile
                 ? new GestureStabilizer(
-                    requiredHits: 1,
+                    requiredHits: 2,
                     requiredMissesToRelease: 3,
                     addExtraHitForCommonGestures: false)
                 : new GestureStabilizer(
@@ -136,6 +137,12 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
     {
         get => _isSettingsPanelVisible;
         set => SetField(ref _isSettingsPanelVisible, value);
+    }
+
+    public bool IsInterruptModeEnabled
+    {
+        get => _isInterruptModeEnabled;
+        set => SetField(ref _isInterruptModeEnabled, value);
     }
 
     public bool FlipPreviewHorizontally
@@ -543,8 +550,18 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
     private void ProcessGestureResult(GestureFrameResult frameResult)
     {
         var currentReaction = _effectMatcher.Match(frameResult);
-        var triggeredReaction = _stabilizer.Push(currentReaction);
-        var gestureText = currentReaction?.DisplayText ?? DescribeDetections(frameResult);
+        var triggeredReaction = _stabilizer.Push(currentReaction, IsInterruptModeEnabled);
+        var latchedKind = _stabilizer.LatchedKind;
+
+        // Do not display a one-frame candidate that has not passed the stabilizer. This was the
+        // source of random gesture names appearing while no deliberate gesture was present.
+        string? gestureText = null;
+        if (triggeredReaction is not null)
+            gestureText = triggeredReaction.DisplayText;
+        else if (currentReaction is not null && currentReaction.Kind == latchedKind)
+            gestureText = currentReaction.DisplayText;
+        else if (latchedKind == ReactionKind.None)
+            gestureText = Localization["WaitingGesture"];
 
         void ApplyGestureResult()
         {
@@ -554,7 +571,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
             // Update the recognition label and start the effect in the same UI operation. Browser
             // callbacks commonly already run on the Avalonia UI thread; applying immediately avoids
             // leaving the effect behind queued preview-render work.
-            GestureText = gestureText;
+            if (gestureText is not null)
+                GestureText = gestureText;
+
             if (triggeredReaction is null || triggeredReaction.Kind == ReactionKind.None)
                 return;
 
