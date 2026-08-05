@@ -7,7 +7,6 @@
   <key>CFBundleVersion</key><string>1</string>
   <key>CFBundleShortVersionString</key><string>1.0.0</string>
   <key>UILaunchStoryboardName</key><string>LaunchScreen</string>
-  <key>XSAppIconAssets</key><string>Assets.xcassets/AppIcon.appiconset</string>
   <key>NSCameraUsageDescription</key><string>用于显示摄像头画面并识别 V 手势和点赞手势。</string>
   <key>UISupportedInterfaceOrientations</key>
   <array>
