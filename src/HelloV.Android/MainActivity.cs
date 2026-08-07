@@ -1,4 +1,5 @@
 using Android.App;
+using Android.Content;
 using Android.Content.PM;
 using Android.OS;
 using Android.Views;
@@ -21,6 +22,14 @@ public sealed class MainActivity : AvaloniaMainActivity
         // because the main-view factory can be invoked from the base implementation.
         AppServices.PlatformKind = AppPlatformKind.Mobile;
         AppServices.CameraFactory = () => new AndroidCameraService(this);
+
+        var preferences = GetSharedPreferences("HelloV.Settings", FileCreationMode.Private);
+        AppServices.LoadInterruptMode = () =>
+            preferences?.Contains("InterruptModeEnabled") == true
+                ? preferences.GetBoolean("InterruptModeEnabled", false)
+                : null;
+        AppServices.SaveInterruptMode = enabled =>
+            preferences?.Edit()?.PutBoolean("InterruptModeEnabled", enabled)?.Apply();
 
         // Android assets live inside the APK and are not normal files. The recognizer factory is
         // already invoked on a worker thread, where AndroidModelLoader copies the packaged ONNX
