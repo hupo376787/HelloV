@@ -14,6 +14,8 @@ public static class AppServices
     public static Func<IGestureRecognizer>? GestureFactory { get; set; }
     public static IEmojiImageProvider? EmojiImageProvider { get; set; }
     public static Func<Task>? ToggleFullscreenAsync { get; set; }
+    public static Func<bool?>? LoadInterruptMode { get; set; }
+    public static Action<bool>? SaveInterruptMode { get; set; }
 
     public static ICameraService CreateCameraService() =>
         CameraFactory?.Invoke() ?? throw new InvalidOperationException(
