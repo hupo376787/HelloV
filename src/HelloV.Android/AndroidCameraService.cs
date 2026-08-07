@@ -5,6 +5,9 @@ using Android.Hardware.Camera2;
 using Android.OS;
 using AndroidX.Camera.Core;
 using AndroidX.Camera.Lifecycle;
+using CameraAspectRatioStrategy = AndroidX.Camera.Core.ResolutionSelector.AspectRatioStrategy;
+using CameraResolutionSelector = AndroidX.Camera.Core.ResolutionSelector.ResolutionSelector;
+using CameraResolutionStrategy = AndroidX.Camera.Core.ResolutionSelector.ResolutionStrategy;
 using AndroidX.Core.Content;
 using AndroidX.Lifecycle;
 using HelloV.Models;
@@ -29,8 +32,8 @@ namespace HelloV.Android;
 public sealed class AndroidCameraService : ICameraService
 {
     private const int PermissionRequestCode = 4201;
-    private const int TargetWidth = 1920;
-    private const int TargetHeight = 1080;
+    private const int MaxWidth = 1920;
+    private const int MaxHeight = 1080;
 
     private readonly AndroidActivity _activity;
     private readonly CameraManager _cameraManager;
@@ -152,7 +155,7 @@ public sealed class AndroidCameraService : ICameraService
 
             AndroidLog.Info(
                 "HelloV",
-                $"CameraX started: facing={camera.Facing}, target={TargetWidth}x{TargetHeight}, " +
+                $"CameraX started: facing={camera.Facing}, max={MaxWidth}x{MaxHeight}, " +
                 "format=RGBA_8888, backpressure=KEEP_ONLY_LATEST");
         }
         finally
@@ -163,17 +166,33 @@ public sealed class AndroidCameraService : ICameraService
 
     private static ImageAnalysis BuildImageAnalysis()
     {
-        // CameraX 1.6 still supports SetTargetResolution. Using it here avoids the default
-        // ImageAnalysis preference of 640x480 and explicitly requests Full HD. CameraX may choose
-        // the closest supported 16:9 size if the exact stream is unavailable.
-#pragma warning disable CS0618
+        // SetTargetResolution(1920x1080) is only a target/minimum hint: CameraX is allowed to
+        // choose a larger stream when the exact size is unavailable. On phones that can mean a
+        // 2K/4K RGBA analysis stream, which is unnecessarily expensive because every frame is
+        // converted to RGBA and copied into the Avalonia preview pipeline.
+        //
+        // ResolutionSelector with CLOSEST_LOWER makes Full HD a real upper preference: use
+        // 1920x1080 when available, otherwise fall back to the nearest LOWER 16:9 resolution.
+        // PREFER_CAPTURE_RATE_OVER_HIGHER_RESOLUTION also keeps CameraX away from slow high-res
+        // sensor modes.
+        using var resolutionStrategy = new CameraResolutionStrategy(
+            new AndroidSize(MaxWidth, MaxHeight),
+            CameraResolutionStrategy.FallbackRuleClosestLower);
+        using var resolutionSelectorBuilder = new CameraResolutionSelector.Builder();
+        resolutionSelectorBuilder.SetAspectRatioStrategy(
+            CameraAspectRatioStrategy.Ratio169FallbackAutoStrategy);
+        resolutionSelectorBuilder.SetResolutionStrategy(resolutionStrategy);
+        resolutionSelectorBuilder.SetAllowedResolutionMode(
+            CameraResolutionSelector.PreferCaptureRateOverHigherResolution);
+        using var resolutionSelector = resolutionSelectorBuilder.Build()
+            ?? throw new InvalidOperationException("CameraX 无法创建分辨率选择器");
+
         using var builder = new ImageAnalysis.Builder();
-        builder.SetTargetResolution(new AndroidSize(TargetWidth, TargetHeight));
+        builder.SetResolutionSelector(resolutionSelector);
         builder.SetBackpressureStrategy(ImageAnalysis.StrategyKeepOnlyLatest);
         builder.SetOutputImageFormat(ImageAnalysis.OutputImageFormatRgba8888);
         return builder.Build()
             ?? throw new InvalidOperationException("CameraX 无法创建图像分析用例");
-#pragma warning restore CS0618
     }
 
     private async Task<ProcessCameraProvider> GetCameraProviderAsync(
