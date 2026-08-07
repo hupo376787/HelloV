@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -27,6 +28,7 @@ public partial class MainView : UserControl
         if (DataContext is not MainViewModel vm)
             return;
 
+        RestoreInterruptMode(vm);
         AttachPreview(vm);
         await vm.InitializeAsync();
     }
@@ -48,6 +50,7 @@ public partial class MainView : UserControl
         DetachPreview();
         _attachedViewModel = vm;
         vm.PreviewFrameReady += OnPreviewFrameReady;
+        vm.PropertyChanged += OnViewModelPropertyChanged;
     }
 
     private void DetachPreview()
@@ -56,7 +59,40 @@ public partial class MainView : UserControl
             return;
 
         _attachedViewModel.PreviewFrameReady -= OnPreviewFrameReady;
+        _attachedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
         _attachedViewModel = null;
+    }
+
+    private static void RestoreInterruptMode(MainViewModel vm)
+    {
+        try
+        {
+            var saved = AppServices.LoadInterruptMode?.Invoke();
+            if (saved.HasValue)
+                vm.IsInterruptModeEnabled = saved.Value;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"读取打断模式设置失败：{ex.Message}");
+        }
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(MainViewModel.IsInterruptModeEnabled) ||
+            sender is not MainViewModel vm)
+        {
+            return;
+        }
+
+        try
+        {
+            AppServices.SaveInterruptMode?.Invoke(vm.IsInterruptModeEnabled);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"保存打断模式设置失败：{ex.Message}");
+        }
     }
 
     private async void OnCameraSurfacePointerPressed(object? sender, PointerPressedEventArgs e)
