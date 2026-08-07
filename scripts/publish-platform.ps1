@@ -210,7 +210,7 @@ function New-MacAppBundle {
 <dict>
   <key>CFBundleName</key><string>HelloV</string>
   <key>CFBundleDisplayName</key><string>HelloV</string>
-  <key>CFBundleIdentifier</key><string>com.example.hellov</string>
+  <key>CFBundleIdentifier</key><string>com.xiaowei.hellov</string>
   <key>CFBundleExecutable</key><string>HelloV.Desktop</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleIconFile</key><string>app-icon</string>
