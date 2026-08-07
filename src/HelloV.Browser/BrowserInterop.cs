@@ -21,6 +21,12 @@ internal static partial class BrowserInterop
     [JSImport("toggleFullscreen", "HelloVBrowser")]
     internal static partial Task ToggleFullscreenAsync();
 
+    [JSImport("getInterruptMode", "HelloVSettings")]
+    internal static partial int GetInterruptMode();
+
+    [JSImport("setInterruptMode", "HelloVSettings")]
+    internal static partial void SetInterruptMode(bool enabled);
+
     /// <summary>
     /// Returns a packet containing an eight-byte little-endian width/height header followed by
     /// packed RGBA8888 pixels. JavaScript returns a Uint8Array, which .NET marshals to byte[].
