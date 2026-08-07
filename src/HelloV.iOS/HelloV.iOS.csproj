@@ -6,7 +6,7 @@
     <OutputType>Exe</OutputType>
     <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
     <ApplicationTitle>HelloV</ApplicationTitle>
-    <ApplicationId>com.example.hellov</ApplicationId>
+    <ApplicationId>com.xiaowei.hellov</ApplicationId>
     <ApplicationVersion>1</ApplicationVersion>
     <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
     <AppIcon>AppIcon</AppIcon>
