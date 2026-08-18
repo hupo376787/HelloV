@@ -6,28 +6,30 @@ $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
 $errors = [System.Collections.Generic.List[string]]::new()
-$utf8 = New-Object System.Text.UTF8Encoding($false, $true)
 
 # Windows PowerShell 5.1 treats UTF-8 files without a BOM as the active ANSI code page.
 # Read every script explicitly as UTF-8 and parse the decoded text instead of ParseFile().
 Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.ps1' -File | ForEach-Object {
+    $scriptFile = $_
     $tokens = $null
     $parseErrors = $null
 
     try {
-        $scriptText = [System.IO.File]::ReadAllText($_.FullName, $utf8)
+        $scriptText = [System.IO.File]::ReadAllText(
+            $scriptFile.FullName,
+            [System.Text.Encoding]::UTF8)
         [void][System.Management.Automation.Language.Parser]::ParseInput(
             $scriptText,
             [ref]$tokens,
             [ref]$parseErrors)
     }
     catch {
-        $errors.Add("$($_.Name): $($_.Exception.Message)")
+        $errors.Add("$($scriptFile.Name): $($_.Exception.Message)")
         return
     }
 
     foreach ($parseError in $parseErrors) {
-        $errors.Add("$($_.Name): $($parseError.Message)")
+        $errors.Add("$($scriptFile.Name): $($parseError.Message)")
     }
 }
 
