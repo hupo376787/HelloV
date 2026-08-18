@@ -6,14 +6,25 @@ $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
 $errors = [System.Collections.Generic.List[string]]::new()
+$utf8 = New-Object System.Text.UTF8Encoding($false, $true)
 
+# Windows PowerShell 5.1 treats UTF-8 files without a BOM as the active ANSI code page.
+# Read every script explicitly as UTF-8 and parse the decoded text instead of ParseFile().
 Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.ps1' -File | ForEach-Object {
     $tokens = $null
     $parseErrors = $null
-    [void][System.Management.Automation.Language.Parser]::ParseFile(
-        $_.FullName,
-        [ref]$tokens,
-        [ref]$parseErrors)
+
+    try {
+        $scriptText = [System.IO.File]::ReadAllText($_.FullName, $utf8)
+        [void][System.Management.Automation.Language.Parser]::ParseInput(
+            $scriptText,
+            [ref]$tokens,
+            [ref]$parseErrors)
+    }
+    catch {
+        $errors.Add("$($_.Name): $($_.Exception.Message)")
+        return
+    }
 
     foreach ($parseError in $parseErrors) {
         $errors.Add("$($_.Name): $($parseError.Message)")
@@ -30,7 +41,7 @@ $required = @(
 
 foreach ($relativePath in $required) {
     if (-not (Test-Path -LiteralPath (Join-Path $root $relativePath))) {
-        $errors.Add("缺少文件：$relativePath")
+        $errors.Add("Missing required file: $relativePath")
     }
 }
 
@@ -40,5 +51,5 @@ if ($errors.Count -gt 0) {
 }
 
 if (-not $Quiet) {
-    Write-Host '发布脚本检查通过。' -ForegroundColor Green
+    Write-Host 'Publish script validation passed.' -ForegroundColor Green
 }
