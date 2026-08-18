@@ -10,32 +10,39 @@ $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
 $targets = @('win-x64', 'win-arm64')
+$publishPlatformPath = Join-Path $PSScriptRoot 'publish-platform.ps1'
+$utf8 = New-Object System.Text.UTF8Encoding($false, $true)
 
-& (Join-Path $PSScriptRoot 'publish-platform.ps1') `
-    -Target browser `
-    -Configuration $Configuration `
-    -Version $Version
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+# Windows PowerShell 5.1 does not reliably treat UTF-8-without-BOM .ps1 files as UTF-8.
+# Decode the platform script ourselves, then execute the resulting ScriptBlock.
+$publishPlatformText = [System.IO.File]::ReadAllText($publishPlatformPath, $utf8)
+$publishPlatform = [ScriptBlock]::Create($publishPlatformText)
 
-foreach ($target in $targets) {
-    & (Join-Path $PSScriptRoot 'publish-platform.ps1') `
-        -Target $target `
+function Invoke-PublishPlatform {
+    param([Parameter(Mandatory)][string]$Target)
+
+    & $publishPlatform `
+        -Target $Target `
         -Configuration $Configuration `
         -Version $Version
+
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }
 }
 
+Invoke-PublishPlatform -Target 'browser'
+
+foreach ($target in $targets) {
+    Invoke-PublishPlatform -Target $target
+}
+
 if (-not [string]::IsNullOrWhiteSpace($env:ANDROID_HOME)) {
-    & (Join-Path $PSScriptRoot 'publish-platform.ps1') `
-        -Target android `
-        -Configuration $Configuration `
-        -Version $Version
+    Invoke-PublishPlatform -Target 'android'
 }
 else {
-    Write-Host '未检测到 ANDROID_HOME，跳过 Android。' -ForegroundColor Yellow
+    Write-Host 'ANDROID_HOME was not detected. Android publishing was skipped.' -ForegroundColor Yellow
 }
 
 Write-Host ''
-Write-Host "全部可用目标已发布到：$(Join-Path $root 'artifacts')" -ForegroundColor Green
+Write-Host "All available targets were published to: $(Join-Path $root 'artifacts')" -ForegroundColor Green
