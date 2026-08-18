@@ -70,7 +70,7 @@ jobs:
       - name: Prepare Unix scripts
         if: runner.os != 'Windows'
         shell: bash
-        run: chmod +x scripts/*.sh one-click-publish/*.sh one-click-publish/*.command
+        run: chmod +x scripts/*.sh
 
       - name: Publish desktop on Windows
         if: runner.os == 'Windows'
@@ -131,7 +131,7 @@ jobs:
 
       - name: Prepare scripts
         shell: bash
-        run: chmod +x scripts/*.sh one-click-publish/*.sh one-click-publish/*.command
+        run: chmod +x scripts/*.sh
 
       - name: Publish browser static site
         shell: bash
