@@ -2,14 +2,15 @@
 param(
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Release',
-    [string]$Version = '1.0.0'
+    [string]$Version = '1.0.0',
+    [ValidateSet('all', 'windows', 'win-x64', 'win-arm64', 'browser', 'android')]
+    [string]$Target = 'all'
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
-$targets = @('win-x64', 'win-arm64')
 $publishPlatformPath = Join-Path $PSScriptRoot 'publish-platform.ps1'
 $runtimePublishPlatformPath = Join-Path $PSScriptRoot '.publish-platform.runtime.ps1'
 
@@ -25,34 +26,60 @@ $publishPlatformText = [System.IO.File]::ReadAllText(
     [System.Text.Encoding]::UTF8)
 
 function Invoke-PublishPlatform {
-    param([Parameter(Mandatory)][string]$Target)
+    param([Parameter(Mandatory)][string]$PlatformTarget)
 
     & $runtimePublishPlatformPath `
-        -Target $Target `
+        -Target $PlatformTarget `
         -Configuration $Configuration `
         -Version $Version
 
     if ($LASTEXITCODE -ne 0) {
-        throw "Publishing target '$Target' failed with exit code $LASTEXITCODE."
+        throw "Publishing target '$PlatformTarget' failed with exit code $LASTEXITCODE."
     }
 }
 
+function Invoke-AndroidPublish {
+    if ([string]::IsNullOrWhiteSpace($env:ANDROID_HOME)) {
+        throw 'ANDROID_HOME was not detected. Install/configure the Android SDK before publishing Android.'
+    }
+
+    Invoke-PublishPlatform -PlatformTarget 'android'
+}
+
 try {
-    Invoke-PublishPlatform -Target 'browser'
+    switch ($Target) {
+        'all' {
+            Invoke-PublishPlatform -PlatformTarget 'browser'
+            Invoke-PublishPlatform -PlatformTarget 'win-x64'
+            Invoke-PublishPlatform -PlatformTarget 'win-arm64'
 
-    foreach ($target in $targets) {
-        Invoke-PublishPlatform -Target $target
-    }
-
-    if (-not [string]::IsNullOrWhiteSpace($env:ANDROID_HOME)) {
-        Invoke-PublishPlatform -Target 'android'
-    }
-    else {
-        Write-Host 'ANDROID_HOME was not detected. Android publishing was skipped.' -ForegroundColor Yellow
+            if (-not [string]::IsNullOrWhiteSpace($env:ANDROID_HOME)) {
+                Invoke-PublishPlatform -PlatformTarget 'android'
+            }
+            else {
+                Write-Host 'ANDROID_HOME was not detected. Android publishing was skipped.' -ForegroundColor Yellow
+            }
+        }
+        'windows' {
+            Invoke-PublishPlatform -PlatformTarget 'win-x64'
+            Invoke-PublishPlatform -PlatformTarget 'win-arm64'
+        }
+        'win-x64' {
+            Invoke-PublishPlatform -PlatformTarget 'win-x64'
+        }
+        'win-arm64' {
+            Invoke-PublishPlatform -PlatformTarget 'win-arm64'
+        }
+        'browser' {
+            Invoke-PublishPlatform -PlatformTarget 'browser'
+        }
+        'android' {
+            Invoke-AndroidPublish
+        }
     }
 
     Write-Host ''
-    Write-Host "All available targets were published to: $(Join-Path $root 'artifacts')" -ForegroundColor Green
+    Write-Host "Publish target '$Target' completed. Output: $(Join-Path $root 'artifacts')" -ForegroundColor Green
 }
 finally {
     if (Test-Path -LiteralPath $runtimePublishPlatformPath) {
