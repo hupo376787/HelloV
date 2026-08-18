@@ -24,18 +24,48 @@ echo.
 set "SELECT="
 set /p "SELECT=Select a publish target: "
 
-if "%SELECT%"=="1" set "TARGET=win-x64"& set "TARGET_NAME=Windows x64"& goto :publish
-if "%SELECT%"=="2" set "TARGET=win-arm64"& set "TARGET_NAME=Windows ARM64"& goto :publish
-if "%SELECT%"=="3" set "TARGET=windows"& set "TARGET_NAME=Windows x64 + ARM64"& goto :publish
-if "%SELECT%"=="4" set "TARGET=browser"& set "TARGET_NAME=Browser WebAssembly"& goto :publish
-if "%SELECT%"=="5" set "TARGET=android"& set "TARGET_NAME=Android"& goto :publish
-if "%SELECT%"=="6" set "TARGET=all"& set "TARGET_NAME=All Available Platforms"& goto :publish
+if "%SELECT%"=="1" goto :select_win_x64
+if "%SELECT%"=="2" goto :select_win_arm64
+if "%SELECT%"=="3" goto :select_windows
+if "%SELECT%"=="4" goto :select_browser
+if "%SELECT%"=="5" goto :select_android
+if "%SELECT%"=="6" goto :select_all
 if "%SELECT%"=="0" goto :eof
 
 echo.
 echo Invalid selection. Please enter 0-6.
 timeout /t 2 /nobreak >nul
 goto :menu
+
+:select_win_x64
+set "TARGET=win-x64"
+set "TARGET_NAME=Windows x64"
+goto :publish
+
+:select_win_arm64
+set "TARGET=win-arm64"
+set "TARGET_NAME=Windows ARM64"
+goto :publish
+
+:select_windows
+set "TARGET=windows"
+set "TARGET_NAME=Windows x64 + ARM64"
+goto :publish
+
+:select_browser
+set "TARGET=browser"
+set "TARGET_NAME=Browser WebAssembly"
+goto :publish
+
+:select_android
+set "TARGET=android"
+set "TARGET_NAME=Android"
+goto :publish
+
+:select_all
+set "TARGET=all"
+set "TARGET_NAME=All Available Platforms"
+goto :publish
 
 :publish
 cls
