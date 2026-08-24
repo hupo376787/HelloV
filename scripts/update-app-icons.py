@@ -6,8 +6,11 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_B64 = ROOT / "scripts" / "app-icon-source.b64"
-SOURCE_PNG = base64.b64decode(SOURCE_B64.read_text(encoding="ascii").strip())
+SOURCE_PARTS = sorted((ROOT / "scripts").glob("app-icon-source.b64.*"))
+if not SOURCE_PARTS:
+    raise FileNotFoundError("No app-icon-source.b64.* chunks were found")
+SOURCE_B64 = "".join(part.read_text(encoding="ascii").strip() for part in SOURCE_PARTS)
+SOURCE_PNG = base64.b64decode(SOURCE_B64)
 TEMP_SOURCE = ROOT / ".app-icon-source.png"
 TEMP_SOURCE.write_bytes(SOURCE_PNG)
 
@@ -87,6 +90,6 @@ try:
         opaque.paste(icon, mask=icon.getchannel("A"))
         opaque.save(ios_root / filename, format="PNG", optimize=True)
 
-    print("HelloV application icons updated from scripts/app-icon-source.b64")
+    print("HelloV application icons updated from the supplied AppIcon.png")
 finally:
     TEMP_SOURCE.unlink(missing_ok=True)
