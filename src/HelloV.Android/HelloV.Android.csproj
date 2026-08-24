@@ -10,6 +10,11 @@
     <ApplicationVersion>1</ApplicationVersion>
     <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!-- Keep managed assemblies inside the APK even for Debug builds.
+         This disables .NET for Android Fast Deployment so clearing app data
+         cannot remove assemblies that the installed app needs to start. -->
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
   </PropertyGroup>
 
   <ItemGroup>
