@@ -4,7 +4,7 @@ on:
   push:
     branches: [master]
     paths:
-      - scripts/app-icon-source.b64
+      - scripts/app-icon-source.ready
 
 permissions:
   contents: write
